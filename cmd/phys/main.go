@@ -10,6 +10,7 @@ import (
 
 func main() {
 	p := phys.NewPhys()
+	defer p.Cleanup()
 	p.Run()
 
 	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/gordian/phys/html"
