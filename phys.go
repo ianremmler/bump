@@ -31,9 +31,14 @@ func newSim() *sim {
 	s.space.AddBody(s.ballBody)
 	s.ballShape = chipmunk.CircleShapeNew(s.ballBody, radius, chipmunk.Vect{0, 0})
 	s.space.AddShape(s.ballShape)
-	s.ballShape.SetFriction(0.7)
+	s.ballShape.SetFriction(0.1)
+	s.ballShape.SetElasticity(0.95)
+// 	s.ground = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+// 		chipmunk.Vect{-20, 5}, chipmunk.Vect{20, -5}, 0)
 	s.ground = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{-20, 5}, chipmunk.Vect{20, -5}, 0)
+		chipmunk.Vect{-20, 0}, chipmunk.Vect{20, 0}, 0)
+	s.ground.SetElasticity(1.0)
+	s.ground.SetFriction(1.0)
 	s.space.AddShape(s.ground)
 	s.ballBody.SetPosition(chipmunk.Vect{0, 15})
 	return s

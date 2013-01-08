@@ -13,7 +13,7 @@ func main() {
 	defer p.Cleanup()
 	p.Run()
 
-	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/gordian/phys/html"
+	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/phys/html"
 	http.Handle("/phys/", websocket.Handler(p.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
 	if err := http.ListenAndServe(":8080", nil); err != nil {

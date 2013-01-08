@@ -13,7 +13,7 @@
 <script src="http://jquery-websocket.googlecode.com/files/jquery.websocket-0.0.1.js"></script>
 
 <script>
-var ws = $.websocket("ws://localhost:8080/phys/", {
+var ws = $.websocket("ws://brane.ath.cx:8080/phys/", {
 	events: {
 		message: function(e) { $('#content').html('<h1>' + e.data + '</h1>') }
 	}
