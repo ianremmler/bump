@@ -1,24 +1,58 @@
 <!doctype html>
 <html>
-<head>
-<meta charset="UTF-8">
-<title>phys</title>
-</head>
-<body>
+	<head>
+		<meta charset="UTF-8">
+		<title>phys</title>
+	</head>
+	<body>
 
-<h1 id="content">...</h1>
+		<h1 id="content">...</h1>
+		<div id="container"></div>
 
-<script src="http://code.jquery.com/jquery.min.js"></script>
-<script src="http://jquery-json.googlecode.com/files/jquery.json-2.4.min.js"></script>
-<script src="http://jquery-websocket.googlecode.com/files/jquery.websocket-0.0.1.js"></script>
+		<script src="http://code.jquery.com/jquery.min.js"></script>
+		<script src="http://jquery-json.googlecode.com/files/jquery.json-2.4.min.js"></script>
+		<script src="http://jquery-websocket.googlecode.com/files/jquery.websocket-0.0.1.js"></script>
+		<script src="http://www.html5canvastutorials.com/libraries/kinetic-v4.3.0-beta2.js"></script>
+		<script src="raf.js"></script>
 
-<script>
-var ws = $.websocket("ws://brane.ath.cx:8080/phys/", {
-	events: {
-		message: function(e) { $('#content').html('<h1>' + e.data + '</h1>') }
-	}
-});
-</script>
+		<script>
+			var stage = new Kinetic.Stage({
+				container: 'container',
+				width: 500,
+				height: 500
+			});
 
-</body>
+			var layer = new Kinetic.Layer();
+
+			var circle = new Kinetic.Circle({
+				x: 250,
+				y: 250,
+				radius: 20,
+				fill: 'red',
+				stroke: 'black',
+				strokeWidth: 2
+			});
+
+			// add the shape to the layer
+			layer.add(circle);
+
+			// add the layer to the stage
+			stage.add(layer);
+
+			(function anim() {
+				requestAnimationFrame(anim);
+				layer.draw();
+				console.log("draw!");
+			})();
+
+			var ws = $.websocket("ws://brane:8080/phys/", {
+				events: {
+					message: function(e) {
+						circle.setPosition(e.data.X, 500 - e.data.Y)
+					}
+				}
+			});
+		</script>
+
+	</body>
 </html>

@@ -4,14 +4,18 @@ import (
 	"github.com/ftrvxmtrx/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
-	"fmt"
+// 	"fmt"
 	"time"
 )
 
 const (
-	simTime    = time.Second / 60
-	updateTime = time.Second / 20
+	simTime    = time.Second / 120
+	updateTime = time.Second / 30
 )
+
+type point struct {
+	X, Y float64
+}
 
 type sim struct {
 	space     *chipmunk.Space
@@ -25,22 +29,22 @@ func newSim() *sim {
 	gravity := chipmunk.Vect{0, -100}
 	s.space = chipmunk.SpaceNew()
 	s.space.SetGravity(gravity)
-	radius, mass := 5.0, 1.0
+	radius, mass := 20.0, 1.0
 	moment := chipmunk.MomentForCircle(mass, 0, radius, chipmunk.Vect{0, 0})
 	s.ballBody = chipmunk.BodyNew(mass, moment)
 	s.space.AddBody(s.ballBody)
 	s.ballShape = chipmunk.CircleShapeNew(s.ballBody, radius, chipmunk.Vect{0, 0})
 	s.space.AddShape(s.ballShape)
-	s.ballShape.SetFriction(0.1)
-	s.ballShape.SetElasticity(0.95)
-// 	s.ground = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-// 		chipmunk.Vect{-20, 5}, chipmunk.Vect{20, -5}, 0)
+// 	s.ballShape.SetFriction(0.1)
+// 	s.ballShape.SetElasticity(0.95)
+	s.ballShape.SetFriction(0)
+	s.ballShape.SetElasticity(1)
 	s.ground = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{-20, 0}, chipmunk.Vect{20, 0}, 0)
+		chipmunk.Vect{0, 0}, chipmunk.Vect{500, 0}, 0)
 	s.ground.SetElasticity(1.0)
 	s.ground.SetFriction(1.0)
 	s.space.AddShape(s.ground)
-	s.ballBody.SetPosition(chipmunk.Vect{0, 15})
+	s.ballBody.SetPosition(chipmunk.Vect{250, 250})
 	return s
 }
 
@@ -96,10 +100,8 @@ func (p *Phys) run() {
 			p.sim.space.Step(float64(simTime) / float64(time.Second))
 		case <-p.updateTimer:
 			pos := p.sim.ballBody.Position()
-			vel := p.sim.ballBody.Velocity()
-			s := fmt.Sprintf("pos:%5.2f,%5.2f vel:%5.2f,%5.2f", pos.X, pos.Y, vel.X, vel.Y)
-			fmt.Println(s)
-			data["data"] = s
+// 			vel := p.sim.ballBody.Velocity()
+			data["data"] = point{pos.X, pos.Y}
 			msg.Data = data
 			for id := range p.clients {
 				msg.To = id
