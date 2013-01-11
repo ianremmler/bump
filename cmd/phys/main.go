@@ -16,7 +16,7 @@ func main() {
 	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/phys/html"
 	http.Handle("/phys/", websocket.Handler(p.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":3000", nil); err != nil {
 		panic("ListenAndServe: " + err.Error())
 	}
 }

@@ -4,55 +4,72 @@ import (
 	"github.com/ftrvxmtrx/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
-// 	"fmt"
+	"math/rand"
 	"time"
 )
 
 const (
-	simTime    = time.Second / 120
-	updateTime = time.Second / 30
+	simTime    = time.Second / 60
+	updateTime = time.Second / 20
+	size       = 500.0
 )
 
-type point struct {
+type ballInfo struct {
+	Id   int
 	X, Y float64
 }
 
 type sim struct {
-	space     *chipmunk.Space
-	ballBody  chipmunk.Body
-	ballShape chipmunk.Shape
-	ground    chipmunk.Shape
+	space      *chipmunk.Space
+	ballBodies []chipmunk.Body
+	ballShapes []chipmunk.Shape
+	box        []chipmunk.Shape
 }
 
 func newSim() *sim {
 	s := &sim{}
+	s.ballBodies = make([]chipmunk.Body, 20)
+	s.ballShapes = make([]chipmunk.Shape, len(s.ballBodies))
+	s.box = make([]chipmunk.Shape, 4)
 	gravity := chipmunk.Vect{0, -100}
 	s.space = chipmunk.SpaceNew()
 	s.space.SetGravity(gravity)
-	radius, mass := 20.0, 1.0
+	radius, mass := 10.0, 1.0
 	moment := chipmunk.MomentForCircle(mass, 0, radius, chipmunk.Vect{0, 0})
-	s.ballBody = chipmunk.BodyNew(mass, moment)
-	s.space.AddBody(s.ballBody)
-	s.ballShape = chipmunk.CircleShapeNew(s.ballBody, radius, chipmunk.Vect{0, 0})
-	s.space.AddShape(s.ballShape)
-// 	s.ballShape.SetFriction(0.1)
-// 	s.ballShape.SetElasticity(0.95)
-	s.ballShape.SetFriction(0)
-	s.ballShape.SetElasticity(1)
-	s.ground = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{0, 0}, chipmunk.Vect{500, 0}, 0)
-	s.ground.SetElasticity(1.0)
-	s.ground.SetFriction(1.0)
-	s.space.AddShape(s.ground)
-	s.ballBody.SetPosition(chipmunk.Vect{250, 250})
+
+	for i := range s.ballBodies {
+		s.ballBodies[i] = chipmunk.BodyNew(mass, moment)
+		s.space.AddBody(s.ballBodies[i])
+		s.ballShapes[i] = chipmunk.CircleShapeNew(s.ballBodies[i], radius,
+			chipmunk.Vect{0, 0})
+		s.ballBodies[i].SetPosition(chipmunk.Vect{radius + rand.Float64()*(size-2*radius),
+			0.5*size + rand.Float64()*(0.5*size-radius)})
+		s.space.AddShape(s.ballShapes[i])
+		s.ballShapes[i].SetFriction(0.1)
+		s.ballShapes[i].SetElasticity(0.9)
+	}
+
+	s.box[0] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+		chipmunk.Vect{0, 0}, chipmunk.Vect{size, 0}, 0)
+	s.box[1] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+		chipmunk.Vect{size, 0}, chipmunk.Vect{size, size}, 0)
+	s.box[2] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+		chipmunk.Vect{size, size}, chipmunk.Vect{0, size}, 0)
+	s.box[3] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+		chipmunk.Vect{0, size}, chipmunk.Vect{0, 0}, 0)
+	for i := range s.box {
+		s.box[i].SetElasticity(1.0)
+		s.box[i].SetFriction(1.0)
+		s.space.AddShape(s.box[i])
+	}
 	return s
 }
 
 func (s *sim) cleanup() {
-	s.space.Free()
-	s.ballBody.Free()
-	s.ballShape.Free()
-	s.ground.Free()
+	// 	s.space.Free()
+	// 	s.ballBodies.Free()
+	// 	s.ballShape.Free()
+	// 	s.box.Free()
 }
 
 type Phys struct {
@@ -81,8 +98,9 @@ func (p *Phys) Run() {
 }
 
 func (p *Phys) run() {
-	msg := &gordian.Message{}
-	data := map[string]interface{}{"type": "message"}
+	msg := gordian.Message{}
+	data := map[string]interface{}{}
+	dat := make([]ballInfo, len(p.sim.ballBodies))
 	for {
 		select {
 		case client := <-p.Control:
@@ -96,16 +114,23 @@ func (p *Phys) run() {
 			case gordian.CLOSE:
 				delete(p.clients, client.Id)
 			}
+		case msg = <-p.InMessage:
+			data = msg.Data.(map[string]interface{})
+			idx := int(data["data"].(float64)) - 1
+			impulse := chipmunk.Vect{200*rand.Float64() - 100, 200*rand.Float64() - 100}
+			p.sim.ballBodies[idx].ApplyImpulse(impulse, chipmunk.Vect{0, 0})
 		case <-p.simTimer:
 			p.sim.space.Step(float64(simTime) / float64(time.Second))
 		case <-p.updateTimer:
-			pos := p.sim.ballBody.Position()
-// 			vel := p.sim.ballBody.Velocity()
-			data["data"] = point{pos.X, pos.Y}
+			for i, bb := range p.sim.ballBodies {
+				pos := bb.Position()
+				dat[i] = ballInfo{i + 1, pos.X, pos.Y}
+			}
+			data["data"] = dat
 			msg.Data = data
 			for id := range p.clients {
 				msg.To = id
-				p.Message <- msg
+				p.OutMessage <- msg
 			}
 		}
 	}

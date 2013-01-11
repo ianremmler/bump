@@ -4,9 +4,8 @@
 		<meta charset="UTF-8">
 		<title>phys</title>
 	</head>
-	<body>
 
-		<h1 id="content">...</h1>
+	<body>
 		<div id="container"></div>
 
 		<script src="http://code.jquery.com/jquery.min.js"></script>
@@ -24,34 +23,44 @@
 
 			var layer = new Kinetic.Layer();
 
-			var circle = new Kinetic.Circle({
-				x: 250,
-				y: 250,
-				radius: 20,
-				fill: 'red',
-				stroke: 'black',
-				strokeWidth: 2
-			});
-
-			// add the shape to the layer
-			layer.add(circle);
+			var circles = [];
+			for (var i = 0; i < 20; i++) {
+				var c = new Kinetic.Circle({
+					x: 250,
+					y: 250,
+					radius: 10,
+					fill: 'red',
+					stroke: 'black',
+					strokeWidth: 2
+				});
+				(function(id) {
+					c.on('mouseenter', function(e) {
+						ws.send('message', id);
+					})
+				})(i + 1);
+				circles.push(c);
+				// add the shape to the layer
+				layer.add(c);
+			}
 
 			// add the layer to the stage
 			stage.add(layer);
 
-			(function anim() {
-				requestAnimationFrame(anim);
-				layer.draw();
-				console.log("draw!");
-			})();
-
-			var ws = $.websocket("ws://brane:8080/phys/", {
+			var ws = $.websocket("ws://bitgnome.net:3000/phys/", {
 				events: {
 					message: function(e) {
-						circle.setPosition(e.data.X, 500 - e.data.Y)
+						for (var i = 0; i < e.data.length; i++) {
+							circles[e.data[i].Id - 1].setPosition(e.data[i].X, 500 - e.data[i].Y)
+						}
 					}
 				}
 			});
+
+			function anim() {
+				requestAnimationFrame(anim);
+				layer.draw();
+			}
+			anim();
 		</script>
 
 	</body>
