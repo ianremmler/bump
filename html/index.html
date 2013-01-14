@@ -20,11 +20,20 @@
 				width: 500,
 				height: 500
 			});
-
 			var layer = new Kinetic.Layer();
-
+			var box = new Kinetic.Rect({
+				x: 0,
+				y: 0,
+				width: 500,
+				height: 500,
+				stroke: 'black',
+				strokeWidth: 2
+			});
+			layer.add(box);
 			var circles = [];
-			for (var i = 0; i < 20; i++) {
+			var touch = -1;
+			var userPos = {x: 0, y: 0};
+			for (var i = 0; i < 50; i++) {
 				var c = new Kinetic.Circle({
 					x: 250,
 					y: 250,
@@ -34,34 +43,35 @@
 					strokeWidth: 2
 				});
 				(function(id) {
-					c.on('mouseenter', function(e) {
-						ws.send('message', id);
-					})
+					c.on('mouseenter tap', function(e) {
+						touch = id;
+					});
 				})(i + 1);
 				circles.push(c);
-				// add the shape to the layer
 				layer.add(c);
 			}
-
-			// add the layer to the stage
 			stage.add(layer);
-
 			var ws = $.websocket("ws://bitgnome.net:3000/phys/", {
+				open: function() { alert("open!"); },
 				events: {
 					message: function(e) {
 						for (var i = 0; i < e.data.length; i++) {
-							circles[e.data[i].Id - 1].setPosition(e.data[i].X, 500 - e.data[i].Y)
+							circles[e.data[i].Id - 1].setPosition(e.data[i].X, 500 - e.data[i].Y);
 						}
 					}
 				}
 			});
-
 			function anim() {
 				requestAnimationFrame(anim);
-				layer.draw();
+				stage.draw();
+				var pos = stage.getUserPosition();
+				if (pos) {
+					userPos = pos;
+				}
+				ws.send('message', [touch, userPos]);
+				touch = -1
 			}
 			anim();
 		</script>
-
 	</body>
 </html>
