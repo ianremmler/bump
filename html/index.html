@@ -52,7 +52,6 @@
 			}
 			stage.add(layer);
 			var ws = $.websocket("ws://bitgnome.net:3000/phys/", {
-				open: function() { alert("open!"); },
 				events: {
 					message: function(e) {
 						for (var i = 0; i < e.data.length; i++) {
