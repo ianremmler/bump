@@ -30,11 +30,12 @@
 				strokeWidth: 2
 			});
 			layer.add(box);
-			var circles = [];
+			var balls = [];
 			var touch = -1;
 			var userPos = {x: 0, y: 0};
+			var cursors = [];
 			for (var i = 0; i < 50; i++) {
-				var c = new Kinetic.Circle({
+				var b = new Kinetic.Circle({
 					x: 250,
 					y: 250,
 					radius: 10,
@@ -43,20 +44,36 @@
 					strokeWidth: 2
 				});
 				(function(id) {
-					c.on('mouseenter tap', function(e) {
+					b.on('mouseenter tap', function(e) {
 						touch = id;
 					});
 				})(i + 1);
-				circles.push(c);
-				layer.add(c);
+				balls.push(b);
+				layer.add(b);
 			}
+      var cursors = new Kinetic.Shape({
+        drawFunc: function(canvas) {
+          var context = canvas.getContext();
+					context.beginPath();
+					for (var i = 0; i < cursors.length; i++) {
+  					context.arc(cursors[i].X, cursors[i].Y, 1, 0, 2 * Math.PI, true);
+					}
+					canvas.fillStroke();
+        },
+        fill: 'black'
+      });
+			layer.add(cursors);
 			stage.add(layer);
 			var ws = $.websocket("ws://bitgnome.net:3000/phys/", {
 				events: {
 					message: function(e) {
-						for (var i = 0; i < e.data.length; i++) {
-							circles[e.data[i].Id - 1].setPosition(e.data[i].X, 500 - e.data[i].Y);
+						for (var i = 0; i < e.data.balls.length; i++) {
+							var id = e.data.balls[i].Id - 1;
+							balls[id].setPosition(
+								e.data.balls[i].Pos.X, 500 - e.data.balls[i].Pos.Y
+							);
 						}
+						cursors = e.data.cursors;
 					}
 				}
 			});

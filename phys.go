@@ -16,8 +16,8 @@ const (
 )
 
 type ballInfo struct {
-	Id   int
-	X, Y float64
+	Id  int
+	Pos chipmunk.Vect
 }
 
 type sim struct {
@@ -108,7 +108,7 @@ func (p *Phys) Run() {
 func (p *Phys) run() {
 	msg := gordian.Message{}
 	data := map[string]interface{}{}
-	dat := make([]ballInfo, len(p.sim.ballBodies))
+	balls := make([]ballInfo, len(p.sim.ballBodies))
 	for {
 		select {
 		case client := <-p.Control:
@@ -136,9 +136,12 @@ func (p *Phys) run() {
 		case <-p.updateTimer:
 			for i, bb := range p.sim.ballBodies {
 				pos := bb.Position()
-				dat[i] = ballInfo{i + 1, pos.X, pos.Y}
+				balls[i] = ballInfo{i + 1, pos}
 			}
-			data["data"] = dat
+// 			data["data"] = balls
+			data["data"] = map[string]interface{}{}
+			data["data"]["balls"] = balls
+			data["data"]["cursors"] = cursors
 			msg.Data = data
 			for id := range p.clients {
 				msg.To = id
