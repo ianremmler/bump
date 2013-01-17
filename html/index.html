@@ -8,10 +8,10 @@
 	<body>
 		<div id="container"></div>
 
-		<script src="http://code.jquery.com/jquery.min.js"></script>
-		<script src="http://jquery-json.googlecode.com/files/jquery.json-2.4.min.js"></script>
-		<script src="http://jquery-websocket.googlecode.com/files/jquery.websocket-0.0.1.js"></script>
-		<script src="http://www.html5canvastutorials.com/libraries/kinetic-v4.3.0-beta2.js"></script>
+		<script src="jquery.min.js"></script>
+		<script src="jquery.json-2.4.min.js"></script>
+		<script src="jquery.websocket-0.0.1.js"></script>
+		<script src="kinetic-v4.3.0-beta2.js"></script>
 		<script src="raf.js"></script>
 
 		<script>
@@ -20,7 +20,9 @@
 				width: 500,
 				height: 500
 			});
+
 			var layer = new Kinetic.Layer();
+
 			var box = new Kinetic.Rect({
 				x: 0,
 				y: 0,
@@ -30,10 +32,12 @@
 				strokeWidth: 2
 			});
 			layer.add(box);
+
 			var balls = [];
 			var touch = -1;
 			var userPos = {x: 0, y: 0};
 			var cursors = [];
+
 			for (var i = 0; i < 50; i++) {
 				var b = new Kinetic.Circle({
 					x: 250,
@@ -51,22 +55,32 @@
 				balls.push(b);
 				layer.add(b);
 			}
-      var cursors = new Kinetic.Shape({
-        drawFunc: function(canvas) {
-          var context = canvas.getContext();
-					context.beginPath();
-					for (var i = 0; i < cursors.length; i++) {
-  					context.arc(cursors[i].X, cursors[i].Y, 1, 0, 2 * Math.PI, true);
+
+			var cursorShape = new Kinetic.Shape({
+				drawFunc: function(canvas) {
+					if (!cursors.length) {
+						return;
 					}
-					canvas.fillStroke();
-        },
-        fill: 'black'
-      });
-			layer.add(cursors);
+					var context = canvas.getContext();
+					for (var i = 0; i < cursors.length; i++) {
+						context.beginPath();
+						context.arc(cursors[i].X, cursors[i].Y, 5, 0, 2 * Math.PI, true);
+						context.closePath();
+						canvas.fillStroke(this);
+					}
+				},
+				fill: 'black',
+				stroke: 'black',
+				strokeWidth: 2
+			});
+			layer.add(cursorShape);
+
 			stage.add(layer);
-			var ws = $.websocket("ws://bitgnome.net:3000/phys/", {
+
+			var ws = $.websocket("ws://localhost:3000/phys/", {
 				events: {
 					message: function(e) {
+						console.log(e.data)
 						for (var i = 0; i < e.data.balls.length; i++) {
 							var id = e.data.balls[i].Id - 1;
 							balls[id].setPosition(

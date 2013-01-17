@@ -4,13 +4,12 @@ import (
 	"github.com/ftrvxmtrx/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
-// 	"fmt"
 	"math/rand"
 	"time"
 )
 
 const (
-	simTime    = time.Second / 100
+	simTime    = time.Second / 60
 	updateTime = time.Second / 20
 	size       = 500.0
 )
@@ -81,7 +80,7 @@ func (s *sim) dropBalls() {
 }
 
 type Phys struct {
-	clients     map[gordian.ClientId]struct{}
+	clients     map[gordian.ClientId]chipmunk.Vect
 	simTimer    <-chan time.Time
 	updateTimer <-chan time.Time
 	curId       int
@@ -91,11 +90,11 @@ type Phys struct {
 
 func NewPhys() *Phys {
 	p := &Phys{
-		clients:     make(map[gordian.ClientId]struct{}),
+		clients:     map[gordian.ClientId]chipmunk.Vect{},
 		simTimer:    time.Tick(simTime),
 		updateTimer: time.Tick(updateTime),
 		sim:         newSim(),
-		Gordian:     gordian.New(),
+		Gordian:     gordian.New(0),
 	}
 	return p
 }
@@ -107,7 +106,7 @@ func (p *Phys) Run() {
 
 func (p *Phys) run() {
 	msg := gordian.Message{}
-	data := map[string]interface{}{}
+	rawData := map[string]interface{}{}
 	balls := make([]ballInfo, len(p.sim.ballBodies))
 	for {
 		select {
@@ -117,16 +116,19 @@ func (p *Phys) run() {
 				p.curId++
 				client.Id = p.curId
 				client.Ctrl = gordian.REGISTER
-				p.clients[client.Id] = struct{}{}
+				p.clients[client.Id] = chipmunk.Vect{}
 				p.sim.dropBalls()
 				p.Control <- client
 			case gordian.CLOSE:
 				delete(p.clients, client.Id)
 			}
 		case msg = <-p.InMessage:
-			data = msg.Data.(map[string]interface{})
-			a := data["data"].([]interface{})
-			idx := int(a[0].(float64)) - 1
+			rawData = msg.Data.(map[string]interface{})
+			data := rawData["data"].([]interface{})
+			idx := int(data[0].(float64)) - 1
+			pos := data[1].(map[string]interface{})
+// 			fmt.Println(msg.From)
+			p.clients[msg.From] = chipmunk.Vect{pos["x"].(float64), pos["y"].(float64)}
 			if idx > 0 {
 				impulse := chipmunk.Vect{1000*rand.Float64() - 500, 1000*rand.Float64() - 500}
 				p.sim.ballBodies[idx].ApplyImpulse(impulse, chipmunk.Vect{0, 0})
@@ -138,11 +140,17 @@ func (p *Phys) run() {
 				pos := bb.Position()
 				balls[i] = ballInfo{i + 1, pos}
 			}
-// 			data["data"] = balls
-			data["data"] = map[string]interface{}{}
-			data["data"]["balls"] = balls
-			data["data"]["cursors"] = cursors
-			msg.Data = data
+			data := map[string]interface{}{}
+			data["balls"] = balls
+
+			cursors := []chipmunk.Vect{}
+			for _, clientPos := range p.clients {
+				cursors = append(cursors, clientPos)
+			}
+
+			data["cursors"] = cursors
+			rawData["data"] = data
+			msg.Data = rawData
 			for id := range p.clients {
 				msg.To = id
 				p.OutMessage <- msg
