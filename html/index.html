@@ -38,15 +38,21 @@
 			var userPos = {x: 0, y: 0};
 			var cursors = [];
 
-			for (var i = 0; i < 50; i++) {
-				var b = new Kinetic.Circle({
-					x: 250,
-					y: 250,
+			for (var i = 0; i < 25; i++) {
+				var b = new Kinetic.Group();
+				var circle = new Kinetic.Circle({
 					radius: 10,
 					fill: 'red',
 					stroke: 'black',
 					strokeWidth: 2
 				});
+				var line = new Kinetic.Line({
+					points: [0, 0, 0, 10],
+					stroke: 'black',
+					strokeWidth: 2
+				});
+				b.add(circle);
+				b.add(line);
 				(function(id) {
 					b.on('mouseenter tap', function(e) {
 						touch = id;
@@ -77,15 +83,13 @@
 
 			stage.add(layer);
 
-			var ws = $.websocket("ws://localhost:3000/phys/", {
+			var ws = $.websocket("ws://remmler.org:3000/phys/", {
 				events: {
 					message: function(e) {
-						console.log(e.data)
 						for (var i = 0; i < e.data.balls.length; i++) {
 							var id = e.data.balls[i].Id - 1;
-							balls[id].setPosition(
-								e.data.balls[i].Pos.X, 500 - e.data.balls[i].Pos.Y
-							);
+							balls[id].setPosition(e.data.balls[i].Pos.X, 500 - e.data.balls[i].Pos.Y);
+							balls[id].setRotation(-e.data.balls[i].Angle);
 						}
 						cursors = e.data.cursors;
 					}

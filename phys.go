@@ -9,14 +9,15 @@ import (
 )
 
 const (
-	simTime    = time.Second / 60
-	updateTime = time.Second / 20
+	simTime    = time.Second / 72
+	updateTime = time.Second / 24
 	size       = 500.0
 )
 
 type ballInfo struct {
-	Id  int
-	Pos chipmunk.Vect
+	Id    int
+	Pos   chipmunk.Vect
+	Angle float64
 }
 
 type sim struct {
@@ -43,7 +44,7 @@ func newSim() *sim {
 		s.ballShapes[i] = chipmunk.CircleShapeNew(s.ballBodies[i], radius,
 			chipmunk.Vect{0, 0})
 		s.space.AddShape(s.ballShapes[i])
-		s.ballShapes[i].SetFriction(0.1)
+		s.ballShapes[i].SetFriction(0.5)
 		s.ballShapes[i].SetElasticity(0.9)
 	}
 
@@ -117,7 +118,6 @@ func (p *Phys) run() {
 				client.Id = p.curId
 				client.Ctrl = gordian.REGISTER
 				p.clients[client.Id] = chipmunk.Vect{}
-				p.sim.dropBalls()
 				p.Control <- client
 			case gordian.CLOSE:
 				delete(p.clients, client.Id)
@@ -127,7 +127,6 @@ func (p *Phys) run() {
 			data := rawData["data"].([]interface{})
 			idx := int(data[0].(float64)) - 1
 			pos := data[1].(map[string]interface{})
-// 			fmt.Println(msg.From)
 			p.clients[msg.From] = chipmunk.Vect{pos["x"].(float64), pos["y"].(float64)}
 			if idx > 0 {
 				impulse := chipmunk.Vect{1000*rand.Float64() - 500, 1000*rand.Float64() - 500}
@@ -138,7 +137,8 @@ func (p *Phys) run() {
 		case <-p.updateTimer:
 			for i, bb := range p.sim.ballBodies {
 				pos := bb.Position()
-				balls[i] = ballInfo{i + 1, pos}
+				angle := bb.Angle()
+				balls[i] = ballInfo{i + 1, pos, angle}
 			}
 			data := map[string]interface{}{}
 			data["balls"] = balls
