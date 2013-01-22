@@ -5,11 +5,14 @@ import (
 	"code.google.com/p/go.net/websocket"
 
 	"go/build"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
+	rand.Seed(time.Now().UTC().UnixNano())
 	p := phys.NewPhys()
 	p.Run()
 

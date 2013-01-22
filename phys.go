@@ -27,7 +27,6 @@ type sim struct {
 }
 
 func newSim() *sim {
-	rand.Seed(time.Now().UTC().UnixNano())
 	s := &sim{}
 	s.ballBodies = make([]chipmunk.Body, 42)
 	s.ballShapes = make([]chipmunk.Shape, len(s.ballBodies))
