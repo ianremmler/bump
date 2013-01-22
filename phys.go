@@ -47,29 +47,16 @@ func newSim() *sim {
 		s.ballShapes[i].SetFriction(0.5)
 		s.ballShapes[i].SetElasticity(0.9)
 	}
-
-	s.box[0] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{0, 0}, chipmunk.Vect{size, 0}, 0)
-	s.box[1] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{size, 0}, chipmunk.Vect{size, size}, 0)
-	s.box[2] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{size, size}, chipmunk.Vect{0, size}, 0)
-	s.box[3] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-		chipmunk.Vect{0, size}, chipmunk.Vect{0, 0}, 0)
+	pts := []chipmunk.Vect{{0, 0}, {size, 0}, {size, size}, {0, size}}
 	for i := range s.box {
+		s.box[i] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
+			pts[i], pts[(i+1)%len(pts)], 0)
 		s.box[i].SetElasticity(1.0)
 		s.box[i].SetFriction(1.0)
 		s.space.AddShape(s.box[i])
 	}
 	s.dropBalls()
 	return s
-}
-
-func (s *sim) cleanup() {
-	// 	s.space.Free()
-	// 	s.ballBodies.Free()
-	// 	s.ballShape.Free()
-	// 	s.box.Free()
 }
 
 func (s *sim) dropBalls() {
@@ -157,8 +144,4 @@ func (p *Phys) run() {
 			}
 		}
 	}
-}
-
-func (p *Phys) Cleanup() {
-	p.sim.cleanup()
 }
