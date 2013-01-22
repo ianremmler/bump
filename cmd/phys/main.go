@@ -19,7 +19,7 @@ func main() {
 	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/phys/html"
 	http.Handle("/phys/", websocket.Handler(p.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
-	port := ":8080"
+	port := ":8000"
 	if len(os.Args) > 1 {
 		port = ":" + os.Args[1]
 	}
