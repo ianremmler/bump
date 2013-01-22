@@ -15,7 +15,6 @@ const (
 )
 
 type ballInfo struct {
-	Id    int
 	Pos   chipmunk.Vect
 	Angle float64
 }
@@ -28,8 +27,9 @@ type sim struct {
 }
 
 func newSim() *sim {
+	rand.Seed(time.Now().UTC().UnixNano())
 	s := &sim{}
-	s.ballBodies = make([]chipmunk.Body, 50)
+	s.ballBodies = make([]chipmunk.Body, 42)
 	s.ballShapes = make([]chipmunk.Shape, len(s.ballBodies))
 	s.box = make([]chipmunk.Shape, 4)
 	gravity := chipmunk.Vect{0, -100}
@@ -128,7 +128,7 @@ func (p *Phys) run() {
 			idx := int(data[0].(float64)) - 1
 			pos := data[1].(map[string]interface{})
 			p.clients[msg.From] = chipmunk.Vect{pos["x"].(float64), pos["y"].(float64)}
-			if idx > 0 {
+			if idx >= 0 {
 				impulse := chipmunk.Vect{1000*rand.Float64() - 500, 1000*rand.Float64() - 500}
 				p.sim.ballBodies[idx].ApplyImpulse(impulse, chipmunk.Vect{0, 0})
 			}
@@ -138,7 +138,7 @@ func (p *Phys) run() {
 			for i, bb := range p.sim.ballBodies {
 				pos := bb.Position()
 				angle := bb.Angle()
-				balls[i] = ballInfo{i + 1, pos, angle}
+				balls[i] = ballInfo{pos, angle}
 			}
 			data := map[string]interface{}{}
 			data["balls"] = balls

@@ -11,7 +11,7 @@
 		<script src="jquery.min.js"></script>
 		<script src="jquery.json-2.4.min.js"></script>
 		<script src="jquery.websocket-0.0.1.js"></script>
-		<script src="kinetic-v4.3.0-beta2.js"></script>
+		<script src="kinetic-v4.3.1.min.js"></script>
 		<script src="raf.js"></script>
 
 		<script>
@@ -38,7 +38,7 @@
 			var userPos = {x: 0, y: 0};
 			var cursors = [];
 
-			for (var i = 0; i < 25; i++) {
+			function newBall() {
 				var b = new Kinetic.Group();
 				var circle = new Kinetic.Circle({
 					radius: 10,
@@ -57,7 +57,7 @@
 					b.on('mouseenter tap', function(e) {
 						touch = id;
 					});
-				})(i + 1);
+				})(balls.length + 1);
 				balls.push(b);
 				layer.add(b);
 			}
@@ -80,16 +80,16 @@
 				strokeWidth: 2
 			});
 			layer.add(cursorShape);
-
 			stage.add(layer);
-
-			var ws = $.websocket("ws://remmler.org:3000/phys/", {
+ 			var ws = $.websocket("ws://" + window.location.host + "/phys/", {
 				events: {
 					message: function(e) {
 						for (var i = 0; i < e.data.balls.length; i++) {
-							var id = e.data.balls[i].Id - 1;
-							balls[id].setPosition(e.data.balls[i].Pos.X, 500 - e.data.balls[i].Pos.Y);
-							balls[id].setRotation(-e.data.balls[i].Angle);
+							if (i >= balls.length) {
+								newBall();
+							}
+							balls[i].setPosition(e.data.balls[i].Pos.X, 500 - e.data.balls[i].Pos.Y);
+							balls[i].setRotation(-e.data.balls[i].Angle);
 						}
 						cursors = e.data.cursors;
 					}
