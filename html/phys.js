@@ -90,10 +90,7 @@ var ws = $.websocket("ws://" + window.location.host + "/phys/", {
 function anim() {
 	requestAnimationFrame(anim);
 	stage.draw();
-	var pos = stage.getUserPosition();
-	if (pos) {
-		userPos = pos;
-	}
+	userPos = stage.getUserPosition() || userPos;
 	ws.send('message', [touch, userPos]);
 	touch = -1;
 }
