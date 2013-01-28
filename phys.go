@@ -13,6 +13,7 @@ const (
 	simTime    = time.Second / 72
 	updateTime = time.Second / 24
 	size       = 500.0
+	numBalls   = 42
 )
 
 type ballInfo struct {
@@ -33,6 +34,7 @@ type Phys struct {
 	space       *chipmunk.Space
 	ballBodies  []chipmunk.Body
 	ballShapes  []chipmunk.Shape
+	ballList    []ballInfo
 	box         []chipmunk.Shape
 	*gordian.Gordian
 }
@@ -49,8 +51,9 @@ func NewPhys() *Phys {
 }
 
 func (p *Phys) setup() {
-	p.ballBodies = make([]chipmunk.Body, 42)
-	p.ballShapes = make([]chipmunk.Shape, len(p.ballBodies))
+	p.ballBodies = make([]chipmunk.Body, numBalls)
+	p.ballShapes = make([]chipmunk.Shape, numBalls)
+	p.ballList = make([]ballInfo, numBalls)
 	p.box = make([]chipmunk.Shape, 4)
 	p.space = chipmunk.SpaceNew()
 	p.space.SetGravity(chipmunk.Vect{0, -100})
@@ -100,86 +103,107 @@ func (p *Phys) Run() {
 }
 
 func (p *Phys) run() {
-	msg := gordian.Message{}
-	rawData := map[string]interface{}{}
-	balls := make([]ballInfo, len(p.ballBodies))
 	for {
 		select {
 		case client := <-p.Control:
-			switch client.Ctrl {
-			case gordian.CONNECT:
-				p.curId++
-				client.Id = p.curId
-				client.Ctrl = gordian.REGISTER
-				body := chipmunk.BodyNew(math.Inf(0), math.Inf(0))
-				p.clients[client.Id] = clientData{body: body}
-				p.Control <- client
-			case gordian.CLOSE:
-				c, ok := p.clients[client.Id]
-				if !ok {
-					break
-				}
-				if c.joint != nil {
-					p.space.RemoveConstraint(c.joint)
-					c.joint.Free()
-				}
-				c.body.Free()
-				delete(p.clients, client.Id)
-			}
-		case msg = <-p.InMessage:
-			id := msg.From
-			c, ok := p.clients[id]
-			if !ok {
-				break
-			}
-			rawData = msg.Data.(map[string]interface{})
-			data := rawData["data"].(map[string]interface{})
-			rawPos := data["pos"].(map[string]interface{})
-			btn := data["btn"].(bool)
-			pos := chipmunk.Vect{rawPos["x"].(float64), rawPos["y"].(float64)}
-			c.body.SetPosition(pos)
-			isDragging := (c.joint != nil)
-
-			switch {
-			case !isDragging && btn:
-				shape := p.space.PointQueryFirst(pos, 1, chipmunk.NoGroup)
-				if shape != nil {
-					c.joint = chipmunk.PivotJointNew2(c.body, shape.Body(),
-						chipmunk.Origin(), chipmunk.Origin())
-					c.joint.SetMaxForce(10000.0)
-					p.space.AddConstraint(c.joint)
-				}
-			case isDragging && !btn:
-				if c.joint != nil {
-					p.space.RemoveConstraint(c.joint)
-					c.joint.Free()
-					c.joint = nil
-				}
-			}
-			p.clients[id] = c
+			p.clientCtrl(client)
+		case msg := <-p.InMessage:
+			p.handleMessage(&msg)
 		case <-p.simTimer:
 			p.space.Step(float64(simTime) / float64(time.Second))
 		case <-p.updateTimer:
-			for i, bb := range p.ballBodies {
-				pos := bb.Position()
-				angle := bb.Angle()
-				balls[i] = ballInfo{pos, angle}
-			}
-			data := map[string]interface{}{}
-			data["balls"] = balls
-
-			cursors := []chipmunk.Vect{}
-			for _, client := range p.clients {
-				cursors = append(cursors, client.body.Position())
-			}
-
-			data["cursors"] = cursors
-			rawData["data"] = data
-			msg.Data = rawData
-			for id := range p.clients {
-				msg.To = id
-				p.OutMessage <- msg
-			}
+			p.update()
 		}
+	}
+}
+
+func (p *Phys) clientCtrl(client *gordian.Client) {
+	switch client.Ctrl {
+	case gordian.CONNECT:
+		p.connect(client)
+	case gordian.CLOSE:
+		p.close(client)
+	}
+}
+
+func (p *Phys) connect(client *gordian.Client) {
+	p.curId++
+	client.Id = p.curId
+	client.Ctrl = gordian.REGISTER
+	body := chipmunk.BodyNew(math.Inf(0), math.Inf(0))
+	p.clients[client.Id] = clientData{body: body}
+	p.Control <- client
+}
+
+func (p *Phys) close(client *gordian.Client) {
+	c, ok := p.clients[client.Id]
+	if !ok {
+		return
+	}
+	if c.joint != nil {
+		p.space.RemoveConstraint(c.joint)
+		c.joint.Free()
+	}
+	c.body.Free()
+	delete(p.clients, client.Id)
+}
+
+func (p *Phys) handleMessage(msg *gordian.Message) {
+	id := msg.From
+	c, ok := p.clients[id]
+	if !ok {
+		return
+	}
+
+	rawData := msg.Data.(map[string]interface{})
+	data := rawData["data"].(map[string]interface{})
+	rawPos := data["pos"].(map[string]interface{})
+	btn := data["btn"].(bool)
+	pos := chipmunk.Vect{rawPos["x"].(float64), rawPos["y"].(float64)}
+	c.body.SetPosition(pos)
+	isDragging := (c.joint != nil)
+
+	switch {
+	case !isDragging && btn:
+		shape := p.space.PointQueryFirst(pos, 1, chipmunk.NoGroup)
+		if shape != nil {
+			c.joint = chipmunk.PivotJointNew2(c.body, shape.Body(),
+			chipmunk.Origin(), chipmunk.Origin())
+			c.joint.SetMaxForce(10000.0)
+			p.space.AddConstraint(c.joint)
+		}
+	case isDragging && !btn:
+		if c.joint != nil {
+			p.space.RemoveConstraint(c.joint)
+			c.joint.Free()
+			c.joint = nil
+		}
+	}
+	p.clients[id] = c
+}
+
+func (p *Phys) update() {
+	for i, bb := range p.ballBodies {
+		pos := bb.Position()
+		angle := bb.Angle()
+		p.ballList[i] = ballInfo{pos, angle}
+	}
+	data := map[string]interface{}{}
+	data["balls"] = p.ballList
+
+	cursors := []chipmunk.Vect{}
+	for _, client := range p.clients {
+		cursors = append(cursors, client.body.Position())
+	}
+
+	payload := map[string]interface{}{}
+	msg := gordian.Message{}
+	data["cursors"] = cursors
+	payload["type"] = "message"
+	payload["data"] = data
+	msg.Data = payload
+	for id := range p.clients {
+		msg.To = id
+		p.OutMessage <- msg
 	}
 }
