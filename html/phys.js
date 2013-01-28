@@ -1,4 +1,10 @@
 var size = 500;
+var balls = [];
+var cursors = [];
+var state = {
+	pos: {x: 0, y: 0},
+	btn: false,
+};
 
 var stage = new Kinetic.Stage({
 	container: 'container',
@@ -6,6 +12,14 @@ var stage = new Kinetic.Stage({
 	height: size,
 	scale: { x: 1, y: -1 },
 	offset: { x: 0, y: size }
+});
+
+stage.on('mousedown', function(evt) {
+	state.btn = true;
+});
+
+stage.on('mouseup', function(evt) {
+	state.btn = false;
 });
 
 var layer = new Kinetic.Layer();
@@ -16,14 +30,9 @@ var box = new Kinetic.Rect({
 	width: size,
 	height: size,
 	stroke: 'black',
-	strokeWidth: 2
+	strokeWidth: 2,
 });
 layer.add(box);
-
-var balls = [];
-var touch = -1;
-var userPos = {x: 0, y: 0};
-var cursors = [];
 
 function newBall() {
 	var b = new Kinetic.Group();
@@ -31,27 +40,23 @@ function newBall() {
 		radius: 10,
 		fill: 'red',
 		stroke: 'black',
-		strokeWidth: 2
+		strokeWidth: 2,
+		listening: false,
 	});
 	var line = new Kinetic.Line({
 		points: [0, 0, 0, 10],
 		stroke: 'black',
-		strokeWidth: 2
+		strokeWidth: 2,
+		listening: false,
 	});
 	b.add(circle);
 	b.add(line);
-	(function(id) {
-		b.on('mouseenter tap', function(e) {
-			touch = id;
-		});
-	})(balls.length + 1);
+	b.listening = false;
 	balls.push(b);
 	layer.add(b);
 }
 
 var cursorShape = new Kinetic.Shape({
-	scale: { x: 1, y: -1 },
-	offset: { x: 0, y: size },
 	drawFunc: function(canvas) {
 		if (!cursors.length) {
 			return;
@@ -90,9 +95,11 @@ var ws = $.websocket("ws://" + window.location.host + "/phys/", {
 function anim() {
 	requestAnimationFrame(anim);
 	stage.draw();
-	userPos = stage.getUserPosition() || userPos;
-	ws.send('message', [touch, userPos]);
-	touch = -1;
+	var pos = stage.getUserPosition();
+	if (pos) {
+	  state.pos = {x: pos.x, y: size - pos.y - 1};
+	}
+	ws.send('message', state);
 }
 
 anim();

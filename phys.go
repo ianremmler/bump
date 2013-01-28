@@ -4,6 +4,7 @@ import (
 	"github.com/ftrvxmtrx/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
+	"math"
 	"math/rand"
 	"time"
 )
@@ -19,6 +20,11 @@ type ballInfo struct {
 	Angle float64
 }
 
+type clientData struct {
+	body  chipmunk.Body
+	joint chipmunk.Constraint
+}
+
 type sim struct {
 	space      *chipmunk.Space
 	ballBodies []chipmunk.Body
@@ -31,28 +37,30 @@ func newSim() *sim {
 	s.ballBodies = make([]chipmunk.Body, 42)
 	s.ballShapes = make([]chipmunk.Shape, len(s.ballBodies))
 	s.box = make([]chipmunk.Shape, 4)
-	gravity := chipmunk.Vect{0, -100}
 	s.space = chipmunk.SpaceNew()
-	s.space.SetGravity(gravity)
+	s.space.SetGravity(chipmunk.Vect{0, -100})
 	radius, mass := 10.0, 1.0
-	moment := chipmunk.MomentForCircle(mass, 0, radius, chipmunk.Vect{0, 0})
+	moment := chipmunk.MomentForCircle(mass, 0, radius, chipmunk.Origin())
 
 	for i := range s.ballBodies {
-		s.ballBodies[i] = chipmunk.BodyNew(mass, moment)
-		s.space.AddBody(s.ballBodies[i])
-		s.ballShapes[i] = chipmunk.CircleShapeNew(s.ballBodies[i], radius,
-			chipmunk.Vect{0, 0})
-		s.space.AddShape(s.ballShapes[i])
-		s.ballShapes[i].SetFriction(0.5)
-		s.ballShapes[i].SetElasticity(0.9)
+		body := chipmunk.BodyNew(mass, moment)
+		s.space.AddBody(body)
+		s.ballBodies[i] = body
+		shape := chipmunk.CircleShapeNew(body, radius, chipmunk.Origin())
+		shape.SetFriction(0.5)
+		shape.SetElasticity(0.9)
+		shape.SetLayers(1)
+		s.space.AddShape(shape)
+		s.ballShapes[i] = shape
 	}
 	pts := []chipmunk.Vect{{0, 0}, {size, 0}, {size, size}, {0, size}}
 	for i := range s.box {
-		s.box[i] = chipmunk.SegmentShapeNew(s.space.StaticBody(),
-			pts[i], pts[(i+1)%len(pts)], 0)
-		s.box[i].SetElasticity(1.0)
-		s.box[i].SetFriction(1.0)
-		s.space.AddShape(s.box[i])
+		shape := chipmunk.SegmentShapeNew(s.space.StaticBody(), pts[i],
+			pts[(i+1)%len(pts)], 0)
+		shape.SetElasticity(1.0)
+		shape.SetFriction(1.0)
+		s.space.AddShape(shape)
+		s.box[i] = shape
 	}
 	s.dropBalls()
 	return s
@@ -67,7 +75,7 @@ func (s *sim) dropBalls() {
 }
 
 type Phys struct {
-	clients     map[gordian.ClientId]chipmunk.Vect
+	clients     map[gordian.ClientId]clientData
 	simTimer    <-chan time.Time
 	updateTimer <-chan time.Time
 	curId       int
@@ -77,7 +85,7 @@ type Phys struct {
 
 func NewPhys() *Phys {
 	p := &Phys{
-		clients:     map[gordian.ClientId]chipmunk.Vect{},
+		clients:     map[gordian.ClientId]clientData{},
 		simTimer:    time.Tick(simTime),
 		updateTimer: time.Tick(updateTime),
 		sim:         newSim(),
@@ -103,21 +111,52 @@ func (p *Phys) run() {
 				p.curId++
 				client.Id = p.curId
 				client.Ctrl = gordian.REGISTER
-				p.clients[client.Id] = chipmunk.Vect{}
+				body := chipmunk.BodyNew(math.Inf(0), math.Inf(0))
+				p.clients[client.Id] = clientData{body: body}
 				p.Control <- client
 			case gordian.CLOSE:
+				c, ok := p.clients[client.Id]
+				if !ok {
+					break
+				}
+				if c.joint != nil {
+					p.sim.space.RemoveConstraint(c.joint)
+					c.joint.Free()
+				}
+				c.body.Free()
 				delete(p.clients, client.Id)
 			}
 		case msg = <-p.InMessage:
-			rawData = msg.Data.(map[string]interface{})
-			data := rawData["data"].([]interface{})
-			idx := int(data[0].(float64)) - 1
-			pos := data[1].(map[string]interface{})
-			p.clients[msg.From] = chipmunk.Vect{pos["x"].(float64), pos["y"].(float64)}
-			if idx >= 0 {
-				impulse := chipmunk.Vect{1000*rand.Float64() - 500, 1000*rand.Float64() - 500}
-				p.sim.ballBodies[idx].ApplyImpulse(impulse, chipmunk.Vect{0, 0})
+			id := msg.From
+			c, ok := p.clients[id]
+			if !ok {
+				break
 			}
+			rawData = msg.Data.(map[string]interface{})
+			data := rawData["data"].(map[string]interface{})
+			rawPos := data["pos"].(map[string]interface{})
+			btn := data["btn"].(bool)
+			pos := chipmunk.Vect{rawPos["x"].(float64), rawPos["y"].(float64)}
+			c.body.SetPosition(pos)
+			isDragging := (c.joint != nil)
+
+			switch {
+			case !isDragging && btn:
+				shape := p.sim.space.PointQueryFirst(pos, 1, chipmunk.NoGroup)
+				if shape != nil {
+					c.joint = chipmunk.PivotJointNew2(c.body, shape.Body(),
+						chipmunk.Origin(), chipmunk.Origin())
+					c.joint.SetMaxForce(1000.0)
+					p.sim.space.AddConstraint(c.joint)
+				}
+			case isDragging && !btn:
+				if c.joint != nil {
+					p.sim.space.RemoveConstraint(c.joint)
+					c.joint.Free()
+					c.joint = nil
+				}
+			}
+			p.clients[id] = c
 		case <-p.simTimer:
 			p.sim.space.Step(float64(simTime) / float64(time.Second))
 		case <-p.updateTimer:
@@ -130,8 +169,8 @@ func (p *Phys) run() {
 			data["balls"] = balls
 
 			cursors := []chipmunk.Vect{}
-			for _, clientPos := range p.clients {
-				cursors = append(cursors, clientPos)
+			for _, client := range p.clients {
+				cursors = append(cursors, client.body.Position())
 			}
 
 			data["cursors"] = cursors
