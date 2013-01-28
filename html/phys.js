@@ -18,7 +18,7 @@ stage.on('mousedown', function(evt) {
 	state.btn = true;
 });
 
-stage.on('mouseup', function(evt) {
+stage.on('mouseup mouseleave', function(evt) {
 	state.btn = false;
 });
 
