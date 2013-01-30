@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ianremmler/bump"
+	"remmler.org/go/bump"
 	"code.google.com/p/go.net/websocket"
 
 	"go/build"
@@ -13,12 +13,12 @@ import (
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	p := bump.NewBump()
-	p.Run()
+	bump := bump.NewBump()
+	bump.Run()
 
-	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/bump/html"
-	http.Handle("/bump/", websocket.Handler(p.WSHandler()))
-	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
+	clientDir := build.Default.GOPATH + "/src/remmler.org/go/bump/client"
+	http.Handle("/bump/", websocket.Handler(bump.WSHandler()))
+	http.Handle("/", http.FileServer(http.Dir(clientDir)))
 	port := ":8000"
 	if len(os.Args) > 1 {
 		port = ":" + os.Args[1]
