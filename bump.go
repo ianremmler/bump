@@ -84,7 +84,7 @@ func (b *Bump) run() {
 		select {
 		case client := <-b.Control:
 			b.clientCtrl(client)
-		case msg := <-b.InMessage:
+		case msg := <-b.InBox:
 			b.handleMessage(&msg)
 		case <-b.simTimer:
 			b.space.Step(float64(simTime) / float64(time.Second))
@@ -139,7 +139,7 @@ func (b *Bump) connect(client *gordian.Client) {
 		Type: "config",
 		Data: data,
 	}
-	b.OutMessage <- msg
+	b.OutBox <- msg
 }
 
 func (b *Bump) close(client *gordian.Client) {
@@ -158,7 +158,6 @@ func (b *Bump) close(client *gordian.Client) {
 }
 
 func (b *Bump) handleMessage(msg *gordian.Message) {
-
 	id := msg.From
 	player, ok := b.players[id]
 	if !ok {
@@ -187,6 +186,6 @@ func (b *Bump) update() {
 	}
 	for id := range b.players {
 		msg.To = id
-		b.OutMessage <- msg
+		b.OutBox <- msg
 	}
 }
