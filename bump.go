@@ -53,7 +53,7 @@ func NewBump() *Bump {
 		arena:       make([]chipmunk.Shape, arenaSegs),
 		simTimer:    time.Tick(simTime),
 		updateTimer: time.Tick(updateTime),
-		Gordian:     gordian.New(0),
+		Gordian:     gordian.New(24),
 	}
 	b.setup()
 	return b
@@ -127,7 +127,7 @@ func (b *Bump) connect(client *gordian.Client) {
 	plr.cursorBody = chipmunk.BodyNew(math.Inf(0), math.Inf(0))
 	plr.cursorJoint = chipmunk.PivotJointNew2(plr.cursorBody, plr.body,
 		chipmunk.Origin(), chipmunk.Origin())
-	plr.cursorJoint.SetMaxForce(500.0)
+	plr.cursorJoint.SetMaxForce(100.0)
 	b.space.AddConstraint(plr.cursorJoint)
 	b.players[plr.id] = plr
 

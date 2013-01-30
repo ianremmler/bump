@@ -8,7 +8,6 @@ var layer;
 var config;
 
 function setup(conf) {
-	console.log("setup")
 	config = conf
 	stage = new Kinetic.Stage({
 		container: 'container',
@@ -32,7 +31,6 @@ function setup(conf) {
 }
 
 function newPlayer() {
-	console.log("newPlayer")
 	return new Kinetic.Circle({
 		radius: config.PlayerRadius,
 		fill: randColor(),
@@ -49,7 +47,7 @@ function handleMessage(evt) {
 	msg = JSON.parse(evt.data);
 	switch (msg.type) {
 	case "config":
-	   	setup(msg.data);
+		setup(msg.data);
 		break;
 	case "state":
 		for (var id in msg.data.players) {
@@ -59,12 +57,12 @@ function handleMessage(evt) {
 				layer.add(p);
 			}
 			var x = msg.data.players[id].Pos.X;
-		   	var y = msg.data.players[id].Pos.Y
+			var y = msg.data.players[id].Pos.Y
 			players[id].setPosition(x, y);
 		}
 		for (var id in players) {
 			if (!(id in msg.data.players)) {
-				stage.remove(players[id]);
+				players[id].remove();
 				delete players[id];
 			}
 		}
@@ -78,7 +76,6 @@ function handleMessage(evt) {
 }
 
 function anim() {
-	console.log("anim")
 	requestAnimationFrame(anim);
 	stage.draw();
 	var pos = stage.getUserPosition();
