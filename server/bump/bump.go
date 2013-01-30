@@ -1,7 +1,7 @@
 package main
 
 import (
-	"remmler.org/go/bump"
+	"remmler.org/go/bump.git"
 	"code.google.com/p/go.net/websocket"
 
 	"go/build"
