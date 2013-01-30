@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ianremmler/phys"
+	"github.com/ianremmler/bump"
 	"code.google.com/p/go.net/websocket"
 
 	"go/build"
@@ -13,11 +13,11 @@ import (
 
 func main() {
 	rand.Seed(time.Now().UTC().UnixNano())
-	p := phys.NewPhys()
+	p := bump.NewBump()
 	p.Run()
 
-	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/phys/html"
-	http.Handle("/phys/", websocket.Handler(p.WSHandler()))
+	htmlDir := build.Default.GOPATH + "/src/github.com/ianremmler/bump/html"
+	http.Handle("/bump/", websocket.Handler(p.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(htmlDir)))
 	port := ":8000"
 	if len(os.Args) > 1 {
