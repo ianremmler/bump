@@ -27,8 +27,7 @@ type player struct {
 	cursorJoint chipmunk.Constraint
 }
 
-type Player struct {
-	Id  gordian.ClientId
+type PlayerState struct {
 	Pos chipmunk.Vect
 }
 
@@ -115,101 +114,79 @@ func (b *Bump) connect(client *gordian.Client) {
 		return
 	}
 
-	plr := player{}
-	plr.id = client.Id
+	player := player{}
+	player.id = client.Id
 	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
-	plr.body = chipmunk.BodyNew(playerMass, moment)
-	b.space.AddBody(plr.body)
-	plr.shape = chipmunk.CircleShapeNew(plr.body, playerRadius, chipmunk.Origin())
-	plr.shape.SetElasticity(0.9)
-	plr.shape.SetFriction(0.1)
-	b.space.AddShape(plr.shape)
-	plr.cursorBody = chipmunk.BodyNew(math.Inf(0), math.Inf(0))
-	plr.cursorJoint = chipmunk.PivotJointNew2(plr.cursorBody, plr.body,
+	player.body = chipmunk.BodyNew(playerMass, moment)
+	b.space.AddBody(player.body)
+	player.shape = chipmunk.CircleShapeNew(player.body, playerRadius, chipmunk.Origin())
+	player.shape.SetElasticity(0.9)
+	player.shape.SetFriction(0.1)
+	b.space.AddShape(player.shape)
+	player.cursorBody = chipmunk.BodyNew(math.Inf(0), math.Inf(0))
+	player.cursorJoint = chipmunk.PivotJointNew2(player.cursorBody, player.body,
 		chipmunk.Origin(), chipmunk.Origin())
-	plr.cursorJoint.SetMaxForce(1000.0)
-	b.space.AddConstraint(plr.cursorJoint)
-	b.players[plr.id] = plr
+	player.cursorJoint.SetMaxForce(1000.0)
+	b.space.AddConstraint(player.cursorJoint)
+	b.players[player.id] = player
 
 	data := configMsg{
 		ArenaRadius:  arenaRadius,
 		PlayerRadius: playerRadius,
 	}
-	msg := newMsg("config", data)
-	msg.To = plr.id
+	msg := gordian.Message{
+		To:   player.id,
+		Type: "config",
+		Data: data,
+	}
 	b.OutMessage <- msg
 }
 
 func (b *Bump) close(client *gordian.Client) {
-	plr, ok := b.players[client.Id]
+	player, ok := b.players[client.Id]
 	if !ok {
 		return
 	}
-	b.space.RemoveConstraint(plr.cursorJoint)
-	plr.cursorJoint.Free()
-	b.space.RemoveBody(plr.body)
-	b.space.RemoveShape(plr.shape)
-	plr.body.Free()
-	plr.shape.Free()
-	plr.cursorBody.Free()
+	b.space.RemoveConstraint(player.cursorJoint)
+	player.cursorJoint.Free()
+	b.space.RemoveBody(player.body)
+	b.space.RemoveShape(player.shape)
+	player.body.Free()
+	player.shape.Free()
+	player.cursorBody.Free()
 	delete(b.players, client.Id)
 }
 
 func (b *Bump) handleMessage(msg *gordian.Message) {
+
 	id := msg.From
-	plr, ok := b.players[id]
+	player, ok := b.players[id]
 	if !ok {
 		return
 	}
-	rawData, ok := msg.Data.(map[string]interface{})
-	if !ok {
-		return
-	}
-	typ, ok := rawData["type"].(string)
-	if !ok {
-		return
-	}
-	switch typ {
+	switch msg.Type {
 	case "player":
-		data, ok := rawData["data"].(map[string]interface{})
-		if !ok {
+		state := &PlayerState{}
+		err := msg.Unmarshal(state)
+		if err != nil {
 			return
 		}
-		rawPos, ok := data["pos"].(map[string]interface{})
-		if !ok {
-			return
-		}
-		x, ok := rawPos["x"].(float64)
-		if !ok {
-			return
-		}
-		y, ok := rawPos["y"].(float64)
-		if !ok {
-			return
-		}
-		pos := chipmunk.Vect{x, y}
-		plr.cursorBody.SetPosition(pos)
+		player.cursorBody.SetPosition(state.Pos)
 	}
-	b.players[id] = plr
+	b.players[id] = player
 }
 
 func (b *Bump) update() {
-	players := map[string]interface{}{}
-	for i, plr := range b.players {
-		players[fmt.Sprintf("%d", i)] = Player{Id: plr.id, Pos: plr.body.Position()}
+	players := map[string]PlayerState{}
+	for i, player := range b.players {
+		players[fmt.Sprintf("%d", i)] = PlayerState{Pos: player.body.Position()}
 	}
-	msg := newMsg("state", map[string]interface{}{"players": players})
+	msg := gordian.Message{
+		Type: "state",
+		Data: players,
+	}
 	for id := range b.players {
 		msg.To = id
 		b.OutMessage <- msg
 	}
-}
-
-func newMsg(msgType string, msgData interface{}) gordian.Message {
-	msg := gordian.Message{}
-	hdr := map[string]interface{}{}
-	hdr["type"] = msgType
-	hdr["data"] = msgData
-	msg.Data = hdr
-	return msg
 }

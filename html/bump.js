@@ -1,6 +1,6 @@
 var players = {};
 var state = {
-	pos: {x: 0, y: 0},
+	Pos: {X: 0, Y: 0},
 };
 
 var stage;
@@ -50,18 +50,18 @@ function handleMessage(evt) {
 		setup(msg.data);
 		break;
 	case "state":
-		for (var id in msg.data.players) {
+		for (var id in msg.data) {
 			if (!(id in players)) {
 				var p = newPlayer();
 				players[id] = p;
 				layer.add(p);
 			}
-			var x = msg.data.players[id].Pos.X;
-			var y = msg.data.players[id].Pos.Y
+			var x = msg.data[id].Pos.X;
+			var y = msg.data[id].Pos.Y
 			players[id].setPosition(x, y);
 		}
 		for (var id in players) {
-			if (!(id in msg.data.players)) {
+			if (!(id in msg.data)) {
 				players[id].remove();
 				delete players[id];
 			}
@@ -80,7 +80,7 @@ function anim() {
 	stage.draw();
 	var pos = stage.getUserPosition();
 	if (pos) {
-		state.pos = {x: pos.x - config.ArenaRadius, y: config.ArenaRadius - pos.y};
+		state.Pos = {X: pos.x - config.ArenaRadius, Y: config.ArenaRadius - pos.y};
 	}
 }
 
