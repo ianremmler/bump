@@ -10,30 +10,30 @@ import (
 )
 
 const (
-	simTime      = time.Second / 72
-	updateTime   = time.Second / 24
-	arenaRadius  = 320
-	arenaSegs    = 360
+	simTime        = time.Second / 72
+	updateTime     = time.Second / 24
+	arenaRadius    = 320
+	arenaSegs      = 360
 	arenaThickness = 8
-	playerRadius = 16
-	playerMass   = 1
+	playerRadius   = 16
+	playerMass     = 1
 )
 
 type player struct {
-	id gordian.ClientId
-	body chipmunk.Body
-	shape chipmunk.Shape
-	cursorBody chipmunk.Body
+	id          gordian.ClientId
+	body        chipmunk.Body
+	shape       chipmunk.Shape
+	cursorBody  chipmunk.Body
 	cursorJoint chipmunk.Constraint
 }
 
 type Player struct {
-	Id gordian.ClientId
+	Id  gordian.ClientId
 	Pos chipmunk.Vect
 }
 
 type configMsg struct {
-	ArenaRadius float64
+	ArenaRadius  float64
 	PlayerRadius float64
 }
 
@@ -61,14 +61,14 @@ func NewBump() *Bump {
 
 func (b *Bump) setup() {
 	b.space = chipmunk.SpaceNew()
-	rad := arenaRadius + 0.5 * arenaThickness
+	rad := arenaRadius + 0.5*arenaThickness
 	for i := range b.arena {
 		a0 := float64(i) / arenaSegs * 2.0 * math.Pi
 		a1 := float64(i+1) / arenaSegs * 2.0 * math.Pi
 		p0 := chipmunk.Vect{rad * math.Cos(a0), rad * math.Sin(a0)}
 		p1 := chipmunk.Vect{rad * math.Cos(a1), rad * math.Sin(a1)}
 		b.arena[i] = chipmunk.SegmentShapeNew(b.space.StaticBody(), p0, p1,
-			0.5 * arenaThickness)
+			0.5*arenaThickness)
 		b.arena[i].SetElasticity(1.0)
 		b.arena[i].SetFriction(1.0)
 		b.space.AddShape(b.arena[i])
@@ -107,7 +107,6 @@ func (b *Bump) clientCtrl(client *gordian.Client) {
 func (b *Bump) connect(client *gordian.Client) {
 	b.curId++
 
-	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
 	client.Id = b.curId
 	client.Ctrl = gordian.REGISTER
 	b.Control <- client
@@ -118,6 +117,7 @@ func (b *Bump) connect(client *gordian.Client) {
 
 	plr := player{}
 	plr.id = client.Id
+	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
 	plr.body = chipmunk.BodyNew(playerMass, moment)
 	b.space.AddBody(plr.body)
 	plr.shape = chipmunk.CircleShapeNew(plr.body, playerRadius, chipmunk.Origin())
@@ -127,18 +127,16 @@ func (b *Bump) connect(client *gordian.Client) {
 	plr.cursorBody = chipmunk.BodyNew(math.Inf(0), math.Inf(0))
 	plr.cursorJoint = chipmunk.PivotJointNew2(plr.cursorBody, plr.body,
 		chipmunk.Origin(), chipmunk.Origin())
-	plr.cursorJoint.SetMaxForce(100.0)
+	plr.cursorJoint.SetMaxForce(1000.0)
 	b.space.AddConstraint(plr.cursorJoint)
 	b.players[plr.id] = plr
 
-	msg := gordian.Message{To: plr.id}
-	data := map[string]interface{}{}
-	data["type"] = "config"
-	data["data"] = configMsg{
-		ArenaRadius: arenaRadius,
+	data := configMsg{
+		ArenaRadius:  arenaRadius,
 		PlayerRadius: playerRadius,
 	}
-	msg.Data = data
+	msg := newMsg("config", data)
+	msg.To = plr.id
 	b.OutMessage <- msg
 }
 
@@ -196,20 +194,22 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 }
 
 func (b *Bump) update() {
-	msg := gordian.Message{}
 	players := map[string]interface{}{}
 	for i, plr := range b.players {
 		players[fmt.Sprintf("%d", i)] = Player{Id: plr.id, Pos: plr.body.Position()}
 	}
-	data := map[string]interface{}{}
-	data["players"] = players
-	payload := map[string]interface{}{}
-	payload["type"] = "state"
-	payload["data"] = data
-	msg.Data = payload
-
+	msg := newMsg("state", map[string]interface{}{"players": players})
 	for id := range b.players {
 		msg.To = id
 		b.OutMessage <- msg
 	}
+}
+
+func newMsg(msgType string, msgData interface{}) gordian.Message {
+	msg := gordian.Message{}
+	hdr := map[string]interface{}{}
+	hdr["type"] = msgType
+	hdr["data"] = msgData
+	msg.Data = hdr
+	return msg
 }
