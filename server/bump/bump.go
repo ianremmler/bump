@@ -16,7 +16,7 @@ func main() {
 	bump := bump.NewBump()
 	bump.Run()
 
-	clientDir := build.Default.GOPATH + "/src/remmler.org/go/bump/client"
+	clientDir := build.Default.GOPATH + "/src/remmler.org/go/bump.git/client"
 	http.Handle("/bump/", websocket.Handler(bump.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(clientDir)))
 	port := ":8000"
