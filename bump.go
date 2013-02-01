@@ -1,10 +1,12 @@
 package bump
 
 import (
-	"github.com/ftrvxmtrx/gochipmunk/chipmunk"
+	"github.com/ianremmler/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
+	"crypto/sha1"
 	"fmt"
+	"io"
 	"math"
 	"time"
 )
@@ -25,10 +27,12 @@ type player struct {
 	shape       chipmunk.Shape
 	cursorBody  chipmunk.Body
 	cursorJoint chipmunk.Constraint
+	color       string
 }
 
 type PlayerState struct {
 	Pos chipmunk.Vect
+	Color string
 }
 
 type configMsg struct {
@@ -60,6 +64,7 @@ func NewBump() *Bump {
 
 func (b *Bump) setup() {
 	b.space = chipmunk.SpaceNew()
+	b.space.SetEnableContactGraph(true)
 	rad := arenaRadius + 0.5*arenaThickness
 	for i := range b.arena {
 		a0 := float64(i) / arenaSegs * 2.0 * math.Pi
@@ -88,9 +93,24 @@ func (b *Bump) run() {
 			b.handleMessage(&msg)
 		case <-b.simTimer:
 			b.space.Step(float64(simTime) / float64(time.Second))
+			for _, player := range b.players {
+				player.body.SetUserData(false)
+				player.body.EachArbiter(wallCollisionCheck)
+				isCol := player.body.UserData().(bool)
+				if isCol {
+// 					fmt.Println("wall")
+				}
+			}
 		case <-b.updateTimer:
 			b.update()
 		}
+	}
+}
+
+func wallCollisionCheck(body chipmunk.Body, arb chipmunk.Arbiter) {
+	_, other := arb.Bodies()
+	if other.IsStatic() && arb.IsFirstContact() {
+		body.SetUserData(true)
 	}
 }
 
@@ -118,6 +138,7 @@ func (b *Bump) connect(client *gordian.Client) {
 	player.id = client.Id
 	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
 	player.body = chipmunk.BodyNew(playerMass, moment)
+	player.body.SetUserData(false)
 	b.space.AddBody(player.body)
 	player.shape = chipmunk.CircleShapeNew(player.body, playerRadius, chipmunk.Origin())
 	player.shape.SetElasticity(0.9)
@@ -128,6 +149,7 @@ func (b *Bump) connect(client *gordian.Client) {
 		chipmunk.Origin(), chipmunk.Origin())
 	player.cursorJoint.SetMaxForce(1000.0)
 	b.space.AddConstraint(player.cursorJoint)
+	player.color = idToColor(player.id)
 	b.players[player.id] = player
 
 	data := configMsg{
@@ -178,7 +200,10 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 func (b *Bump) update() {
 	players := map[string]PlayerState{}
 	for i, player := range b.players {
-		players[fmt.Sprintf("%d", i)] = PlayerState{Pos: player.body.Position()}
+		players[fmt.Sprintf("%d", i)] = PlayerState{
+			Pos: player.body.Position(),
+			Color: player.color,
+		}
 	}
 	msg := gordian.Message{
 		Type: "state",
@@ -188,4 +213,10 @@ func (b *Bump) update() {
 		msg.To = id
 		b.OutBox <- msg
 	}
+}
+
+func idToColor(id gordian.ClientId) string {
+	sha := sha1.New()
+	io.WriteString(sha, fmt.Sprintf("%d", id))
+	return "#" + fmt.Sprintf("%x", sha.Sum(nil)[:3])
 }

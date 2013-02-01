@@ -30,14 +30,14 @@ function setup(conf) {
 	anim();
 }
 
-function newPlayer() {
-	return new Kinetic.Circle({
+function newPlayer(color) {
+	var player = new Kinetic.Circle({
 		radius: config.PlayerRadius,
-		fill: randColor(),
+		fill: color,
 		stroke: 'black',
 		strokeWidth: 2,
-		listening: false,
 	});
+	return player;
 }
 
 var ws = new WebSocket("ws://" + window.location.host + "/bump/");
@@ -52,7 +52,8 @@ function handleMessage(evt) {
 	case "state":
 		for (var id in msg.data) {
 			if (!(id in players)) {
-				var p = newPlayer();
+				console.log(msg.data[id].Color);
+				var p = newPlayer(msg.data[id].Color);
 				players[id] = p;
 				layer.add(p);
 			}
@@ -82,8 +83,4 @@ function anim() {
 	if (pos) {
 		state.Pos = {X: pos.x - config.ArenaRadius, Y: config.ArenaRadius - pos.y};
 	}
-}
-
-function randColor() {
-	return '#' + ('00000' + (Math.random() * 16777216 << 0).toString(16)).substr(-6);
 }
