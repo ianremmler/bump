@@ -30,8 +30,8 @@ type player struct {
 	color       string
 }
 
-type PlayerState struct {
-	Pos chipmunk.Vect
+type Player struct {
+	Pos   chipmunk.Vect
 	Color string
 }
 
@@ -98,7 +98,6 @@ func (b *Bump) run() {
 				player.body.EachArbiter(wallCollisionCheck)
 				isCol := player.body.UserData().(bool)
 				if isCol {
-// 					fmt.Println("wall")
 				}
 			}
 		case <-b.updateTimer:
@@ -134,11 +133,9 @@ func (b *Bump) connect(client *gordian.Client) {
 		return
 	}
 
-	player := player{}
-	player.id = client.Id
+	player := player{id: client.Id}
 	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
 	player.body = chipmunk.BodyNew(playerMass, moment)
-	player.body.SetUserData(false)
 	b.space.AddBody(player.body)
 	player.shape = chipmunk.CircleShapeNew(player.body, playerRadius, chipmunk.Origin())
 	player.shape.SetElasticity(0.9)
@@ -187,7 +184,7 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 	}
 	switch msg.Type {
 	case "player":
-		state := &PlayerState{}
+		state := &Player{}
 		err := msg.Unmarshal(state)
 		if err != nil {
 			return
@@ -198,10 +195,10 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 }
 
 func (b *Bump) update() {
-	players := map[string]PlayerState{}
+	players := map[string]Player{}
 	for i, player := range b.players {
-		players[fmt.Sprintf("%d", i)] = PlayerState{
-			Pos: player.body.Position(),
+		players[fmt.Sprintf("%d", i)] = Player{
+			Pos:   player.body.Position(),
 			Color: player.color,
 		}
 	}
