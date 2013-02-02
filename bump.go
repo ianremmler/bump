@@ -92,24 +92,21 @@ func (b *Bump) run() {
 		case msg := <-b.InBox:
 			b.handleMessage(&msg)
 		case <-b.simTimer:
-			b.space.Step(float64(simTime) / float64(time.Second))
-			for _, player := range b.players {
-				player.body.SetUserData(false)
-				player.body.EachArbiter(wallCollisionCheck)
-				isCol := player.body.UserData().(bool)
-				if isCol {
-				}
-			}
+			b.step()
 		case <-b.updateTimer:
 			b.update()
 		}
 	}
 }
 
-func wallCollisionCheck(body chipmunk.Body, arb chipmunk.Arbiter) {
-	_, other := arb.Bodies()
-	if other.IsStatic() && arb.IsFirstContact() {
-		body.SetUserData(true)
+func (b *Bump) step() {
+	b.space.Step(float64(simTime) / float64(time.Second))
+	for _, player := range b.players {
+		player.body.SetUserData(false)
+		player.body.EachArbiter(wallCollisionCheck)
+		isCol := player.body.UserData().(bool)
+		if isCol {
+		}
 	}
 }
 
@@ -216,4 +213,11 @@ func idToColor(id gordian.ClientId) string {
 	sha := sha1.New()
 	io.WriteString(sha, fmt.Sprintf("%d", id))
 	return "#" + fmt.Sprintf("%x", sha.Sum(nil)[:3])
+}
+
+func wallCollisionCheck(body chipmunk.Body, arb chipmunk.Arbiter) {
+	_, other := arb.Bodies()
+	if other.IsStatic() && arb.IsFirstContact() {
+		body.SetUserData(true)
+	}
 }
