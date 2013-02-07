@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -47,6 +48,7 @@ type Bump struct {
 	curId       int
 	space       *chipmunk.Space
 	arena       []chipmunk.Shape
+	mu          sync.Mutex
 	*gordian.Gordian
 }
 
@@ -81,6 +83,7 @@ func (b *Bump) setup() {
 
 func (b *Bump) Run() {
 	go b.run()
+	go b.sim()
 	b.Gordian.Run()
 }
 
@@ -91,22 +94,25 @@ func (b *Bump) run() {
 			b.clientCtrl(client)
 		case msg := <-b.InBox:
 			b.handleMessage(&msg)
-		case <-b.simTimer:
-			b.step()
 		case <-b.updateTimer:
 			b.update()
 		}
 	}
 }
 
-func (b *Bump) step() {
-	b.space.Step(float64(simTime) / float64(time.Second))
-	for _, player := range b.players {
-		player.body.SetUserData(false)
-		player.body.EachArbiter(wallCollisionCheck)
-		isCol := player.body.UserData().(bool)
-		if isCol {
+func (b *Bump) sim() {
+	for {
+		<-b.simTimer
+		b.mu.Lock()
+		b.space.Step(float64(simTime) / float64(time.Second))
+		for _, player := range b.players {
+			player.body.SetUserData(false)
+			player.body.EachArbiter(wallCollisionCheck)
+			isCol := player.body.UserData().(bool)
+			if isCol {
+			}
 		}
+		b.mu.Unlock()
 	}
 }
 
@@ -130,6 +136,7 @@ func (b *Bump) connect(client *gordian.Client) {
 		return
 	}
 
+	b.mu.Lock()
 	player := player{id: client.Id}
 	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
 	player.body = chipmunk.BodyNew(playerMass, moment)
@@ -145,6 +152,7 @@ func (b *Bump) connect(client *gordian.Client) {
 	b.space.AddConstraint(player.cursorJoint)
 	player.color = idToColor(player.id)
 	b.players[player.id] = player
+	b.mu.Unlock()
 
 	data := configMsg{
 		ArenaRadius:  arenaRadius,
@@ -159,6 +167,9 @@ func (b *Bump) connect(client *gordian.Client) {
 }
 
 func (b *Bump) close(client *gordian.Client) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	player, ok := b.players[client.Id]
 	if !ok {
 		return
@@ -174,6 +185,9 @@ func (b *Bump) close(client *gordian.Client) {
 }
 
 func (b *Bump) handleMessage(msg *gordian.Message) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
 	id := msg.From
 	player, ok := b.players[id]
 	if !ok {
@@ -193,12 +207,16 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 
 func (b *Bump) update() {
 	players := map[string]Player{}
+
+	b.mu.Lock()
 	for i, player := range b.players {
 		players[fmt.Sprintf("%d", i)] = Player{
 			Pos:   player.body.Position(),
 			Color: player.color,
 		}
 	}
+	b.mu.Unlock()
+
 	msg := gordian.Message{
 		Type: "state",
 		Data: players,
