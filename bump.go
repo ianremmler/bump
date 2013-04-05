@@ -13,7 +13,7 @@ import (
 const (
 	simTime        = time.Second / 1000
 	updateTime     = time.Second / 24
-	arenaRadius    = 500
+	arenaRadius    = 320
 	arenaSegs      = 360
 	arenaThickness = 8
 	playerRadius   = 16
