@@ -4,36 +4,49 @@ import (
 	"github.com/ianremmler/gochipmunk/chipmunk"
 	"github.com/ianremmler/gordian"
 
-	"crypto/sha1"
 	"fmt"
-	"io"
 	"math"
 	"sync"
 	"time"
 )
 
 const (
-	simTime        = time.Second / 72
+	simTime        = time.Second / 1000
 	updateTime     = time.Second / 24
-	arenaRadius    = 320
+	arenaRadius    = 500
 	arenaSegs      = 360
 	arenaThickness = 8
 	playerRadius   = 16
 	playerMass     = 1
 )
 
+const (
+	centerType = 1 << iota
+	playerType
+	wallType
+)
+
+const (
+	normState = iota
+	riskState
+	direState
+	deadState
+)
+
 type player struct {
 	id          gordian.ClientId
+	team        int
+	state       int
 	body        chipmunk.Body
 	shape       chipmunk.Shape
 	cursorBody  chipmunk.Body
 	cursorJoint chipmunk.Constraint
-	color       string
 }
 
 type Player struct {
-	Pos   chipmunk.Vect
-	Color string
+	Pos     chipmunk.Vect
+	Team    int
+	State   int
 }
 
 type configMsg struct {
@@ -48,6 +61,7 @@ type Bump struct {
 	curId       int
 	space       *chipmunk.Space
 	arena       []chipmunk.Shape
+	center      chipmunk.Shape
 	mu          sync.Mutex
 	*gordian.Gordian
 }
@@ -79,6 +93,12 @@ func (b *Bump) setup() {
 		b.arena[i].SetFriction(1.0)
 		b.space.AddShape(b.arena[i])
 	}
+	b.center = chipmunk.CircleShapeNew(b.space.StaticBody(), playerRadius, chipmunk.Origin())
+	b.center.SetElasticity(1.0)
+	b.center.SetFriction(1.0)
+	b.center.SetCollisionType(centerType)
+	b.space.AddShape(b.center)
+	b.space.SetUserData(b)
 }
 
 func (b *Bump) Run() {
@@ -106,11 +126,7 @@ func (b *Bump) sim() {
 		b.mu.Lock()
 		b.space.Step(float64(simTime) / float64(time.Second))
 		for _, player := range b.players {
-			player.body.SetUserData(false)
-			player.body.EachArbiter(wallCollisionCheck)
-			isCol := player.body.UserData().(bool)
-			if isCol {
-			}
+			player.body.EachArbiter(checkCollision)
 		}
 		b.mu.Unlock()
 	}
@@ -123,6 +139,19 @@ func (b *Bump) clientCtrl(client *gordian.Client) {
 	case gordian.CLOSE:
 		b.close(client)
 	}
+}
+
+func (b *Bump) smallerTeam() int {
+	t0Size := 0
+	for _, player := range b.players {
+		if player.team == 0 {
+			t0Size++
+		}
+	}
+	if 2 * t0Size <= len(b.players) {
+		return 0
+	}
+	return 1
 }
 
 func (b *Bump) connect(client *gordian.Client) {
@@ -139,18 +168,23 @@ func (b *Bump) connect(client *gordian.Client) {
 	b.mu.Lock()
 	player := player{id: client.Id}
 	moment := chipmunk.MomentForCircle(playerMass, 0, playerRadius, chipmunk.Origin())
+
 	player.body = chipmunk.BodyNew(playerMass, moment)
+	player.body.SetUserData(client.Id)
 	b.space.AddBody(player.body)
+
 	player.shape = chipmunk.CircleShapeNew(player.body, playerRadius, chipmunk.Origin())
 	player.shape.SetElasticity(0.9)
 	player.shape.SetFriction(0.1)
 	b.space.AddShape(player.shape)
+
 	player.cursorBody = chipmunk.BodyNew(math.Inf(0), math.Inf(0))
 	player.cursorJoint = chipmunk.PivotJointNew2(player.cursorBody, player.body,
 		chipmunk.Origin(), chipmunk.Origin())
 	player.cursorJoint.SetMaxForce(1000.0)
 	b.space.AddConstraint(player.cursorJoint)
-	player.color = idToColor(player.id)
+	player.team = b.smallerTeam()
+
 	b.players[player.id] = player
 	b.mu.Unlock()
 
@@ -212,7 +246,8 @@ func (b *Bump) update() {
 	for i, player := range b.players {
 		players[fmt.Sprintf("%d", i)] = Player{
 			Pos:   player.body.Position(),
-			Color: player.color,
+			Team:  player.team,
+			State: player.state,
 		}
 	}
 	b.mu.Unlock()
@@ -227,15 +262,55 @@ func (b *Bump) update() {
 	}
 }
 
-func idToColor(id gordian.ClientId) string {
-	sha := sha1.New()
-	io.WriteString(sha, fmt.Sprintf("%d", id))
-	return "#" + fmt.Sprintf("%x", sha.Sum(nil)[:3])
+func checkCollision(body chipmunk.Body, arb chipmunk.Arbiter) {
+	if !arb.IsFirstContact() {
+		return
+	}
+	bump := body.Space().UserData().(*Bump)
+	_, otherShape := arb.Shapes()
+
+	playerId := body.UserData().(gordian.ClientId)
+	player := bump.players[playerId]
+
+	switch otherShape.CollisionType() {
+	case centerType:
+		fmt.Printf("player %v hit center\n", playerId)
+		player.state = centerBump(player.state)
+		bump.players[playerId] = player
+	case playerType:
+		otherId := otherShape.Body().UserData().(gordian.ClientId)
+		fmt.Printf("player %v hit hit player %v\n", playerId, otherId)
+		other := bump.players[otherId]
+		player.state, other.state = playerBump(player.state, other.state)
+		bump.players[playerId] = player
+		bump.players[otherId] = other
+	case wallType:
+		fmt.Printf("player %v hit wall\n", playerId)
+		player.state = wallBump(player.state)
+		bump.players[playerId] = player
+	}
 }
 
-func wallCollisionCheck(body chipmunk.Body, arb chipmunk.Arbiter) {
-	_, other := arb.Bodies()
-	if other.IsStatic() && arb.IsFirstContact() {
-		body.SetUserData(true)
+func playerBump(player0State, player1State int) (int, int) {
+	switch {
+	case player0State == normState && player1State == riskState:
+		return normState, direState
+	case player0State == riskState && player1State == normState:
+		return direState, normState
 	}
+	return player0State, player1State
+}
+
+func wallBump(playerState int) int {
+	switch playerState {
+	case normState:
+		return riskState
+	case direState:
+		return deadState
+	}
+	return playerState
+}
+
+func centerBump(playerState int) int {
+	return normState
 }
