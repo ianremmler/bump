@@ -52,8 +52,7 @@ func (p *player) wallBump() {
 	case normState:
 		p.state = riskState
 	case direState:
-		p.state = normState
-		p.body.SetPosition(chipmunk.Vect{})
+		p.state = deadState
 	}
 }
 
@@ -78,8 +77,14 @@ type configMsg struct {
 	PlayerRadius float64
 }
 
+type stateMsg struct {
+	Players map[string]Player
+	Score []int
+}
+
 type Bump struct {
 	players     map[gordian.ClientId]*player
+	score       []int
 	simTimer    <-chan time.Time
 	updateTimer <-chan time.Time
 	curId       int
@@ -93,6 +98,7 @@ type Bump struct {
 func NewBump() *Bump {
 	b := &Bump{
 		players:     map[gordian.ClientId]*player{},
+		score:       []int{0, 0},
 		arena:       make([]chipmunk.Shape, arenaSegs),
 		simTimer:    time.Tick(simTime),
 		updateTimer: time.Tick(updateTime),
@@ -152,6 +158,12 @@ func (b *Bump) sim() {
 		b.space.Step(float64(simTime) / float64(time.Second))
 		for _, player := range b.players {
 			player.body.EachArbiter(checkCollision)
+			if player.state == deadState {
+				otherTeam := 1 - player.team
+				b.score[otherTeam]++
+				player.body.SetPosition(chipmunk.Vect{})
+				player.state = normState
+			}
 		}
 		b.mu.Unlock()
 	}
@@ -265,11 +277,13 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 }
 
 func (b *Bump) update() {
-	players := map[string]Player{}
-
 	b.mu.Lock()
+	state := stateMsg{
+		Players: map[string]Player{},
+		Score:   b.score,
+	}
 	for i, player := range b.players {
-		players[fmt.Sprintf("%d", i)] = Player{
+		state.Players[fmt.Sprintf("%d", i)] = Player{
 			Pos:   player.body.Position(),
 			Team:  player.team,
 			State: player.state,
@@ -279,7 +293,7 @@ func (b *Bump) update() {
 
 	msg := gordian.Message{
 		Type: "state",
-		Data: players,
+		Data: state,
 	}
 	for id := range b.players {
 		msg.To = id

@@ -3,7 +3,9 @@ var state = { Pos: { X: 0, Y: 0 } };
 var stage;
 var layer;
 var config;
+var scoreboard = [];
 var stateColor = ['green', 'yellow', 'red', 'blue'];
+var teamColor = ['red', 'blue'];
 
 function setup(conf) {
 	config = conf;
@@ -30,13 +32,27 @@ function setup(conf) {
 		radius: config.PlayerRadius,
 		fill: 'green'
 	}));
+	for (var i = 0; i < 2; i++) {
+		var text = new Kinetic.Text({
+			fontSize: 48,
+			x: (config.ArenaRadius - 50) * (2 * i - 1) - 50,
+			y: -config.ArenaRadius + 50,
+			width: 100,
+			height: 100,
+			text: '0',
+			align: 'center',
+			fill: teamColor[i],
+			scale: { x: 1, y: -1 }
+		});
+		scoreboard.push(text);
+		layer.add(text);
+	}
 	stage.add(layer);
-
 	anim();
 }
 
 function newPlayer(team) {
-	var color = (team === 0) ? 'black' : 'white';
+	var color = teamColor[team];
 	var player = new Kinetic.Circle({
 		radius: config.PlayerRadius,
 		fill: color,
@@ -53,7 +69,8 @@ ws.onmessage = function(evt) {
 		setup(msg.data);
 		break;
 	case "state":
-		updatePlayers(msg.data);
+		updatePlayers(msg.data.Players);
+		updateScore(msg.data.Score);
 		sendState();
 		break;
 	default:
@@ -78,6 +95,12 @@ function updatePlayers(curPlayers) {
 			players[id].remove();
 			delete players[id];
 		}
+	}
+}
+
+function updateScore(score) {
+	for (var idx in score) {
+		scoreboard[idx].setText(score[idx]);
 	}
 }
 
