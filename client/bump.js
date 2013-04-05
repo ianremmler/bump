@@ -20,6 +20,7 @@ function setup(conf) {
 		x: 0,
 		y: 0,
 		radius: config.ArenaRadius - 1,
+		fill: 'lightgray',
 		stroke: 'black',
 		strokeWidth: 2
 	}));
@@ -27,7 +28,7 @@ function setup(conf) {
 		x: 0,
 		y: 0,
 		radius: config.PlayerRadius,
-		fill: 'black'
+		fill: 'green'
 	}));
 	stage.add(layer);
 
@@ -35,7 +36,7 @@ function setup(conf) {
 }
 
 function newPlayer(team) {
-	var color = (team == 0) ? 'red' : 'blue'
+	var color = (team === 0) ? 'black' : 'white';
 	var player = new Kinetic.Circle({
 		radius: config.PlayerRadius,
 		fill: color,
@@ -91,7 +92,7 @@ function sendState() {
 function anim() {
 	requestAnimationFrame(anim);
 	stage.draw();
-	var pos = stage.getUserPosition();
+	var pos = stage.getPointerPosition();
 	if (pos) {
 		state.Pos = { X: pos.x - config.ArenaRadius, Y: config.ArenaRadius - pos.y };
 	}
