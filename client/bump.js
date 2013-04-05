@@ -3,6 +3,7 @@ var state = { Pos: { X: 0, Y: 0 } };
 var stage;
 var layer;
 var config;
+var stateColor = ['green', 'yellow', 'red', 'blue'];
 
 function setup(conf) {
 	config = conf;
@@ -22,17 +23,23 @@ function setup(conf) {
 		stroke: 'black',
 		strokeWidth: 2
 	}));
+	layer.add(new Kinetic.Circle({
+		x: 0,
+		y: 0,
+		radius: config.PlayerRadius,
+		fill: 'black'
+	}));
 	stage.add(layer);
 
 	anim();
 }
 
-function newPlayer(color) {
+function newPlayer(team) {
+	var color = (team == 0) ? 'red' : 'blue'
 	var player = new Kinetic.Circle({
 		radius: config.PlayerRadius,
 		fill: color,
-		stroke: 'black',
-		strokeWidth: 2
+		strokeWidth: 4
 	});
 	return player;
 }
@@ -56,14 +63,14 @@ ws.onmessage = function(evt) {
 function updatePlayers(curPlayers) {
 	for (var id in curPlayers) {
 		if (!(id in players)) {
-			console.log(curPlayers[id].Color);
-			var p = newPlayer(curPlayers[id].Color);
+			var p = newPlayer(curPlayers[id].Team);
 			players[id] = p;
 			layer.add(p);
 		}
 		var x = curPlayers[id].Pos.X;
 		var y = curPlayers[id].Pos.Y;
 		players[id].setPosition(x, y);
+		players[id].setStroke(stateColor[curPlayers[id].State]);
 	}
 	for (id in players) {
 		if (!(id in curPlayers)) {
