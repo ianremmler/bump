@@ -67,9 +67,9 @@ func (p *player) playerBump(other *player) {
 }
 
 type Player struct {
-	Pos     chipmunk.Vect
-	Team    int
-	State   int
+	Pos   chipmunk.Vect
+	Team  int
+	State int
 }
 
 type configMsg struct {
@@ -79,7 +79,7 @@ type configMsg struct {
 
 type stateMsg struct {
 	Players map[string]Player
-	Score []int
+	Score   []int
 }
 
 type Bump struct {
@@ -117,8 +117,7 @@ func (b *Bump) setup() {
 		a1 := float64(i+1) / arenaSegs * 2.0 * math.Pi
 		p0 := chipmunk.Vect{rad * math.Cos(a0), rad * math.Sin(a0)}
 		p1 := chipmunk.Vect{rad * math.Cos(a1), rad * math.Sin(a1)}
-		b.arena[i] = chipmunk.SegmentShapeNew(b.space.StaticBody(), p0, p1,
-			0.5*arenaThickness)
+		b.arena[i] = chipmunk.SegmentShapeNew(b.space.StaticBody(), p0, p1, 0.5*arenaThickness)
 		b.arena[i].SetElasticity(1.0)
 		b.arena[i].SetFriction(1.0)
 		b.arena[i].SetCollisionType(wallType)
@@ -185,7 +184,7 @@ func (b *Bump) smallerTeam() int {
 			t0Size++
 		}
 	}
-	if 2 * t0Size <= len(b.players) {
+	if 2*t0Size <= len(b.players) {
 		return 0
 	}
 	return 1
@@ -278,6 +277,15 @@ func (b *Bump) handleMessage(msg *gordian.Message) {
 
 func (b *Bump) update() {
 	b.mu.Lock()
+
+	if b.score[0] > 99 || b.score[1] > 99 {
+		b.score[0], b.score[1] = 0, 0
+		for _, player := range b.players {
+			player.body.SetPosition(chipmunk.Vect{})
+			player.state = normState
+		}
+	}
+
 	state := stateMsg{
 		Players: map[string]Player{},
 		Score:   b.score,

@@ -11,10 +11,10 @@ function setup(conf) {
 	config = conf;
 	stage = new Kinetic.Stage({
 		container: 'container',
-		width: 2 * config.ArenaRadius,
-		height: 2 * config.ArenaRadius,
+		width: 2 * config.ArenaRadius + 8,
+		height: 2 * config.ArenaRadius + 8,
 		scale: { x: 1, y: -1 },
-		offset: { x: -config.ArenaRadius, y: config.ArenaRadius }
+		offset: { x: -config.ArenaRadius - 4, y: config.ArenaRadius + 4 }
 	});
 	layer = new Kinetic.Layer();
 
@@ -24,17 +24,20 @@ function setup(conf) {
 		radius: config.ArenaRadius - 1,
 		fill: 'lightgray',
 		stroke: 'black',
-		strokeWidth: 2
+		strokeWidth: 4
 	}));
+
 	layer.add(new Kinetic.Circle({
 		x: 0,
 		y: 0,
 		radius: config.PlayerRadius,
 		fill: 'green'
 	}));
+
 	for (var i = 0; i < 2; i++) {
 		var text = new Kinetic.Text({
 			fontSize: 72,
+			fontFamily: 'monospace',
 			x: (config.ArenaRadius - 50) * (2 * i - 1) - 50,
 			y: -config.ArenaRadius + 100,
 			width: 100,
@@ -48,6 +51,7 @@ function setup(conf) {
 		scoreboard.push(text);
 		layer.add(text);
 	}
+
 	stage.add(layer);
 	anim();
 }
