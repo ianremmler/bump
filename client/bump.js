@@ -34,13 +34,14 @@ function setup(conf) {
 	}));
 	for (var i = 0; i < 2; i++) {
 		var text = new Kinetic.Text({
-			fontSize: 48,
+			fontSize: 72,
 			x: (config.ArenaRadius - 50) * (2 * i - 1) - 50,
-			y: -config.ArenaRadius + 50,
+			y: -config.ArenaRadius + 100,
 			width: 100,
-			height: 100,
+			height: 200,
 			text: '0',
 			align: 'center',
+			stroke: 'gray',
 			fill: teamColor[i],
 			scale: { x: 1, y: -1 }
 		});
