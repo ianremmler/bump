@@ -5,7 +5,7 @@ var layer;
 var config;
 var scoreboard = [];
 var stateColor = ['green', 'yellow', 'red', 'blue'];
-var teamColor = ['red', 'blue'];
+var teamColor = ['black', 'white'];
 
 function setup(conf) {
 	config = conf;
