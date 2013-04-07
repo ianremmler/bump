@@ -2,6 +2,7 @@ var players = {};
 var state = { Pos: { X: 0, Y: 0 } };
 var stage;
 var layer;
+var me;
 var config;
 var scoreboard = [];
 var stateColor = ['green', 'yellow', 'red', 'blue'];
@@ -33,6 +34,14 @@ function setup(conf) {
 		radius: config.PlayerRadius,
 		fill: 'green'
 	}));
+
+	me = new Kinetic.Circle({
+		x: 0,
+		y: 0,
+		radius: 6,
+		fill: 'gray'
+	});
+	layer.add(me);
 
 	for (var i = 0; i < 2; i++) {
 		var text = new Kinetic.Text({
@@ -94,6 +103,10 @@ function updatePlayers(curPlayers) {
 		var y = curPlayers[id].Pos.Y;
 		players[id].setPosition(x, y);
 		players[id].setStroke(stateColor[curPlayers[id].State]);
+		if (id == config.Id) {
+			me.setPosition(x, y);
+			me.moveToTop();
+		}
 	}
 	for (id in players) {
 		if (!(id in curPlayers)) {

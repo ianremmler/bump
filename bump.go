@@ -73,6 +73,7 @@ type Player struct {
 }
 
 type configMsg struct {
+	Id           string
 	ArenaRadius  float64
 	PlayerRadius float64
 }
@@ -228,6 +229,7 @@ func (b *Bump) connect(client *gordian.Client) {
 	data := configMsg{
 		ArenaRadius:  arenaRadius,
 		PlayerRadius: playerRadius,
+		Id:           fmt.Sprintf("%d", player.id),
 	}
 	msg := gordian.Message{
 		To:   player.id,
