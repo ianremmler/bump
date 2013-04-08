@@ -1,0 +1,16 @@
+Bump is a simple multiplayer web-based physics game.  It consists of two teams
+of players within a circular arena, with a special "safe" circle in the center.
+
+A new player is assigned to the team with fewer players and is placed near the
+center of the arena.  Moving the cursor within the arena applies thrust in the
+direction of the cursor relative to the arena center and proportional to the
+distance from the center.
+
+Teams score points by bouncing opponents into the arena perimeter, tapping them
+directly, then bouncing them into the perimeter again.
+
+Players that have hit the wall, and possibly an opponent after that, may tap
+the center safe circle to reset to normal status.
+
+Once one team reaches 100 points, the scores are reset to 0 and a new game
+begins.
