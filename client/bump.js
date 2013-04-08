@@ -31,7 +31,7 @@ function setup(conf) {
 	layer.add(new Kinetic.Circle({
 		x: 0,
 		y: 0,
-		radius: config.PlayerRadius,
+		radius: 2 * config.PlayerRadius,
 		fill: 'green'
 	}));
 
