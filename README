@@ -14,3 +14,14 @@ the center safe circle to reset to normal status.
 
 Once one team reaches 100 points, the scores are reset to 0 and a new game
 begins.
+
+Bump depends on the C Chipmunk Physics library, and has been tested with
+version 6.1.4 available at:
+
+  http://chipmunk-physics.net/release/Chipmunk-6.x/Chipmunk-6.1.4.tgz
+
+If Chipmunk is installed in a nonstandard location, you need to set environment
+variables to tell Go where to find it:
+
+  CGO_CFLAGS=-I/path/to/chipmunk/includes
+  CGO_LDFLAGS=-L/path/to/chipmunk/library
