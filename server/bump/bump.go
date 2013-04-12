@@ -1,7 +1,7 @@
 package main
 
 import (
-	"remmler.org/go/bump.git"
+	"github.com/ianremmler/bump"
 	"code.google.com/p/go.net/websocket"
 
 	"go/build"
@@ -16,7 +16,7 @@ func main() {
 	bump := bump.NewBump()
 	bump.Run()
 
-	clientDir := build.Default.GOPATH + "/src/remmler.org/go/bump.git/client"
+	clientDir := build.Default.GOPATH + "/src/github.com/ianremmler/bump/client"
 	http.Handle("/bump/", websocket.Handler(bump.WSHandler()))
 	http.Handle("/", http.FileServer(http.Dir(clientDir)))
 	port := ":8000"
