@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	simTime        = time.Second / 1000
+	simTime        = time.Second / 60
 	updateTime     = time.Second / 24
 	arenaRadius    = 320
 	arenaSegs      = 360
