@@ -173,9 +173,9 @@ func (b *Bump) sim() {
 
 func (b *Bump) clientCtrl(client *gordian.Client) {
 	switch client.Ctrl {
-	case gordian.CONNECT:
+	case gordian.Connect:
 		b.connect(client)
-	case gordian.CLOSE:
+	case gordian.Close:
 		b.close(client)
 	}
 }
@@ -197,10 +197,10 @@ func (b *Bump) connect(client *gordian.Client) {
 	b.curId++
 
 	client.Id = b.curId
-	client.Ctrl = gordian.REGISTER
+	client.Ctrl = gordian.Register
 	b.Control <- client
 	client = <-b.Control
-	if client.Ctrl != gordian.ESTABLISH {
+	if client.Ctrl != gordian.Establish {
 		return
 	}
 

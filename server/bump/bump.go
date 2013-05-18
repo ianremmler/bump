@@ -17,7 +17,7 @@ func main() {
 	bump.Run()
 
 	clientDir := build.Default.GOPATH + "/src/github.com/ianremmler/bump/client"
-	http.Handle("/bump/", websocket.Handler(bump.WSHandler()))
+	http.Handle("/bump/", websocket.Handler(bump.WSHandler))
 	http.Handle("/", http.FileServer(http.Dir(clientDir)))
 	port := ":8000"
 	if len(os.Args) > 1 {
