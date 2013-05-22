@@ -1,7 +1,7 @@
 package bump
 
 import (
-	"github.com/ianremmler/gochipmunk/chipmunk"
+	"github.com/ianremmler/chipmunk"
 	"github.com/ianremmler/gordian"
 
 	"fmt"
